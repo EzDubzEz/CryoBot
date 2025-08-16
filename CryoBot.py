@@ -3,10 +3,12 @@ from discord.ext import commands
 from dotenv import load_dotenv
 load_dotenv()
 import os
+import aiohttp
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 PUBLIC_KEY = os.getenv("PUBLIC_KEY")
 DEBUG_MODE = os.getenv("DEBUG_MODE") == "True"
+CHANNEL_ID = ""
 
 def debugPrint(text):
     if DEBUG_MODE:
@@ -109,3 +111,36 @@ async def four(ctx):# TODO: Make this not a command and be automatic
 
     # embed.set_footer(text="Gankster Scrim Bot • Cryobark Ops")
     # embed.set_thumbnail(url="https://example.com/cancel_icon.png")
+
+
+HEADERS = {
+    "Authorization": f"Bot {DISCORD_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+async def post_native_poll():
+    url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
+    payload = {
+        "poll": {
+            "question": "📅 What day are you free this week?",
+            "answers": [
+                {"answer": "Monday"},
+                {"answer": "Tuesday"},
+                {"answer": "Wednesday"},
+                {"answer": "Thursday"},
+                {"answer": "Friday"},
+                {"answer": "Saturday"},
+                {"answer": "Sunday"}
+            ],
+            "allow_multiselect": False
+        },
+        "flags": 0,
+        "content": ""  # You can also add extra message content here
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=HEADERS, json=payload) as resp:
+            if resp.status != 200:
+                print(f"Error posting poll: {resp.status}")
+            else:
+                print("Poll posted!")

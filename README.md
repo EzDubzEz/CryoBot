@@ -1,0 +1,2 @@
+# Cryobot
+Cryobark Discord Bot

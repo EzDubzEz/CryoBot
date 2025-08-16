@@ -1,0 +1,12 @@
+import requests
+
+url = "https://lol.gankster.gg/api/v1/events/public/99938" #84830 93270 99938
+response = requests.get(url)
+
+for event in response.json()["lfsEvents"]:
+    print(event["status"])
+
+# currentScrims = [{"startTime": }]
+
+print("Status:", response.status_code)
+print("Response:", response.text)

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 class ScrimFormat(Enum):
     BEST_OF_ONE = "Bo1"
@@ -13,6 +13,7 @@ class ScrimFormat(Enum):
     THREE_GAMES = "3 Games"
     FOUR_GAMES = "4 Games"
     FIVE_GAMES = "5 Games"
+    NONE = "None"
 
 class Tier(Enum):
     IRON = "Iron"
@@ -49,7 +50,7 @@ class Player:
     rank: str
     tag: str = ""
     puuid: str = ""
-    champions: list[str] = []
+    champions: list[str] = ()
 
 @dataclass
 class Reputation:
@@ -62,7 +63,7 @@ class Reputation:
     communication: str = ""
     behavior: str = ""
     onTime: str = ""
-    reviews: list[str] = []
+    reviews: list[str] = ()
 
 @dataclass
 class Team:
@@ -72,15 +73,32 @@ class Team:
     rank: str = "" #Team ranks are different than individual rank
     region: str = ""
     bio: str = ""
-    roster: list[Player] = []
-    subs: list[Player] = []
+    roster: list[Player] = ()
+    subs: list[Player] = ()
     opggLink: str = ""
     created: datetime = None
-    reputation: Reputation
+    reputation: Reputation = None
 
 @dataclass
 class Scrim:
     time: datetime
-    scrimFormat: ScrimFormat
+    scrimFormat: ScrimFormat = ScrimFormat.NONE
     team: Team = None
     open: bool = True
+
+class ErrorName(Enum):
+    NONE = "None",
+    MISSING_DATA = "Missing Data",
+
+ERROR_DESCRIPTIONS = {
+    ErrorName.NONE: "No Issue",
+    ErrorName.MISSING_DATA: "Scrim Results has missing data, please update the empty fields then try again manually",
+}
+
+@dataclass
+class CryoBotError(Exception):
+    name: str
+    description: str = field(init=False)
+
+    def __post_init__(self):
+        self.description = ERROR_DESCRIPTIONS[self.name]

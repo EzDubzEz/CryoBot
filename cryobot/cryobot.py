@@ -121,37 +121,37 @@ class CryoBot:
             # embed.set_thumbnail(url="https://example.com/cancel_icon.png")
 
 
-HEADERS = {
-    "Authorization": f"Bot {DISCORD_TOKEN}",
-    "Content-Type": "application/json"
-}
 
-async def post_native_poll():
-    url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
-    payload = {
-        "poll": {
-            "question": "📅 What day are you free this week?",
-            "answers": [
-                {"answer": "Monday"},
-                {"answer": "Tuesday"},
-                {"answer": "Wednesday"},
-                {"answer": "Thursday"},
-                {"answer": "Friday"},
-                {"answer": "Saturday"},
-                {"answer": "Sunday"}
-            ],
-            "allow_multiselect": False
-        },
-        "flags": 0,
-        "content": ""  # You can also add extra message content here
-    }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=HEADERS, json=payload) as resp:
-            if resp.status != 200:
-                print(f"Error posting poll: {resp.status}")
-            else:
-                print("Poll posted!")
+    async def post_native_poll():
+        HEADERS = {
+            "Authorization": f"Bot {DISCORD_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
+
+        payload = {
+            "poll": {
+                "question": {"text": "📅 Scrim Availability"},
+                "answers": [
+                    {"poll_media": {"text": "Monday"}},
+                    {"poll_media": {"text": "Tuesday"}},
+                    {"poll_media": {"text": "Wednesday"}},
+                    {"poll_media": {"text": "Thursday"}},
+                    {"poll_media": {"text": "Friday"}},
+                    {"poll_media": {"text": "Saturday"}},
+                    {"poll_media": {"text": "Sunday"}}
+                ],
+                "allow_multiselect": True,
+                "duration": 48  # in Hours 
+            }
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=HEADERS, json=payload) as resp:
+                print("Status:", resp.status)
+                print("Response:", await resp.text())
 
 
 if __name__ == "__main__":

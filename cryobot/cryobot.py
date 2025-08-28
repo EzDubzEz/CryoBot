@@ -1,17 +1,19 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import aiohttp
 from helper import debugPrint, getVariable
+import datetime
+from zoneinfo import ZoneInfo
 
 DISCORD_TOKEN = getVariable("DISCORD_TOKEN")
 CHANNEL_ID = getVariable("CHANNEL_ID")
 GUILD_ID = getVariable("GUILD_ID")
+PollSend = datetime.time(hour=6, tzinfo=ZoneInfo("America/New_York"))
 
 class CryoBot:
     def __init__(self):
         self.scrimRequests: list[discord.Message] = []
         self.scrimFounds: list[discord.Message] = []
-
         intents = discord.Intents.none()
         intents.guilds = True
         intents.messages = True
@@ -21,6 +23,13 @@ class CryoBot:
         self._register_commands()
 
         self._bot.run(DISCORD_TOKEN)
+        try:
+            self.post_native_poll.start()
+            debugPrint(f"Starting repeating tracker")
+        except Exception as e:
+            debugPrint(f"Failed to start loop: {e}")
+
+        
     
     def _register_commands(self):
         @self._bot.event
@@ -122,36 +131,40 @@ class CryoBot:
 
 
 
-
-    async def post_native_poll():
-        HEADERS = {
-            "Authorization": f"Bot {DISCORD_TOKEN}",
-            "Content-Type": "application/json"
-        }
-
-        url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
-
-        payload = {
-            "poll": {
-                "question": {"text": "📅 Scrim Availability"},
-                "answers": [
-                    {"poll_media": {"text": "Monday"}},
-                    {"poll_media": {"text": "Tuesday"}},
-                    {"poll_media": {"text": "Wednesday"}},
-                    {"poll_media": {"text": "Thursday"}},
-                    {"poll_media": {"text": "Friday"}},
-                    {"poll_media": {"text": "Saturday"}},
-                    {"poll_media": {"text": "Sunday"}}
-                ],
-                "allow_multiselect": True,
-                "duration": 48  # in Hours 
+    @tasks.loop(time=PollSend)
+    async def post_native_poll(self):
+        time = datetime.now(ZoneInfo("America/New_York"))
+        if datetime.datetime.today().weekday() == 5:
+            HEADERS = {
+                "Authorization": f"Bot {DISCORD_TOKEN}",
+                "Content-Type": "application/json"
             }
-        }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=HEADERS, json=payload) as resp:
-                print("Status:", resp.status)
-                print("Response:", await resp.text())
+            url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
+
+            payload = {
+                "poll": {
+                    "question": {"text": "📅 Scrim Availability"},
+                    "answers": [
+                        {"poll_media": {"text": "Monday"}},
+                        {"poll_media": {"text": "Tuesday"}},
+                        {"poll_media": {"text": "Wednesday"}},
+                        {"poll_media": {"text": "Thursday"}},
+                        {"poll_media": {"text": "Friday"}},
+                        {"poll_media": {"text": "Saturday"}},
+                        {"poll_media": {"text": "Sunday"}}
+                    ],
+                    "allow_multiselect": True,
+                    "duration": 48  # in Hours 
+                }
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=HEADERS, json=payload) as resp:
+                    print("Status:", resp.status)
+                    print("Response:", await resp.text())
+
+        
 
 
 if __name__ == "__main__":

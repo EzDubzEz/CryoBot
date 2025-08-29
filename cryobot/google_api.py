@@ -1,5 +1,5 @@
 from helper import getVariable
-from scrim_classes import Scrim, ScrimFormat, Team
+from scrim_classes import Scrim, ScrimFormat, Team, ErrorName, CryoBotError
 import requests
 from google_auth_oauthlib.flow import InstalledAppFlow
 import os
@@ -18,9 +18,6 @@ GOOGLE_URL = getVariable("GOOGLE_URL")
 class GoogleAPI:
     def __init__(self):
         self._creds = self._getCreds()
-        if self._creds != None:
-            self._headers = {"Authorization": f"Bearer {self._creds.token}","Content-Type": "application/json"}
-        pass
 
     def _getCreds(self) -> Credentials:
         creds = None
@@ -34,7 +31,7 @@ class GoogleAPI:
                 return None
             with open('google_auth_token.json', 'w') as token_file:
                 token_file.write(creds.to_json())
-
+        self._headers = {"Authorization": f"Bearer {creds.token}","Content-Type": "application/json"}
         return creds
 
     def setupCreds(self) -> None:
@@ -65,19 +62,37 @@ class GoogleAPI:
         ])
 
         self._creds = flow.run_local_server(port=8080, open_browser=False, state=state)
+        self._headers = {"Authorization": f"Bearer {self._creds.token}","Content-Type": "application/json"}
+
+        with open('google_auth_token.json', 'w') as token_file:
+            token_file.write(self._creds.to_json())
+
+    def refreshCreds(self)->None:
+        """
+        Call occasionally to just keep auth going good and creds refreshed
+
+        Returns:
+            None
+        """
+        self._creds.refresh(Request())
+        try:
+            self.update_scrim_results()
+        except:
+            pass
 
     def isAuthSetup(self) -> bool:
         return self._creds != None
 
     def _make_call(self, payload):
-        response = requests.post(GOOGLE_URL, headers=self._headers, json=payload)
+        response = requests.post(GOOGLE_URL, headers=self._headers, json=payload).json()
 
-        # TODO: Handle response.status_code
-        print(response.status_code)
-        print(response.text)
-        return response.text #res
+        if "error" in response:
+            messages = response["error"]["details"][0]["errorMessage"].removeprefix("Error: ").split(": ")
+            if messages[0] in (e.value for e in ErrorName):
+                raise CryoBotError(ErrorName(messages[0] ), messages[1])
+            raise CryoBotError(ErrorName.UNKNOWN, "", description=": ".join(messages))
 
-    def setupScrim(self, scrim: Scrim) -> None:
+    def found_scrim(self, scrim: Scrim) -> None:
         """
         Adds/Fills the team to the scouting doc, then adds a page to the Scrim Results sheet
 
@@ -89,37 +104,80 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If script fails"""
+            CryoBotError: If issue occurs"""
 
         payload = {
-            "function": "scrimFound",
-            "parameters": [scrim.team.name, f"https://lol.gankster.gg/teams/{scrim.team.number}", scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrimFormat.value],
-            "devMode": True  # always run the latest code
+            "function": "foundScrim",
+            "parameters": [scrim.team.name, scrim.team.number, scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrimFormat.games, scrim.scrimFormat.formatLong],
+            "devMode": True
         }
-        response = self._make_call(payload)
+        self._make_call(payload)
 
-    def updateScrimResults(self) -> None:
+    def cancel_scrim(self, scrim: Scrim) -> None:
         """
-        Updates the scrim results sheet to be called after a scrim block is played
+        Removes scrim from the scrim results sheet
 
         Args:
             scrim (Scrim): The scrim request to accept
-            accept (bool): Whether or not to accept the request
 
         Returns:
             None
 
         Raises:
-            CryoBotError: If script fails"""
+            CryoBotError: If issue occurs"""
+
+        payload = {
+            "function": "cancelScrim",
+            "parameters": [scrim.team.name, scrim.time.strftime("%m/%d/%Y")],
+            "devMode": True
+        }
+        self._make_call(payload)
+
+    def update_scrim_results(self) -> None:
+        """
+        Updates the scrim results sheet, should be called after a scrim block is played
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs"""
+
         payload = {
             "function": "updateScrimResults",
             "devMode": True
         }
-        response = self._make_call(payload)
+        self._make_call(payload)
+
+    def reset_scrim_results_data(self) -> None:
+        """
+        Reloads all of the scrim result data, this takes a while
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs"""
+
+        payload = {
+            "function": "resetScrimResultsData",
+            "devMode": True
+        }
+        self._make_call(payload)
     pass
 
+
 if __name__ == "__main__":
-    team = Team("84830", "Cryoborkers", opggLink="https://op.gg/lol/summoners/na/TreboTehTree-NA1")
-    scrim = Scrim(datetime.now(), ScrimFormat.THREE_GAMES, team=team)
-    # GoogleAPI().setupScrim(scrim)
-    GoogleAPI().updateScrimResults()
+    team = Team("84830", "Cryobarkers", opggLink="https://op.gg/lol/summoners/na/TreboTehTree-NA1")
+    scrim = Scrim(datetime.now(), ScrimFormat.BEST_OF_THREE, team=team)
+    # GoogleAPI().found_scrim(scrim)
+    # GoogleAPI().updateScrimResults()
+    # GoogleAPI().setupCreds()
+    GoogleAPI().cancel_scrim(scrim)
+    # GoogleAPI().testing()

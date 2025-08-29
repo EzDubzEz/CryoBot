@@ -29,6 +29,18 @@ class Gankster:
         """
         return self._browser.retrieve_scrim_requests()
 
+    def retrieve_team_number(self, team_name: str) -> str:
+        """
+        Retrieves the team's number from their name
+
+        Args:
+            team (Team): the team class to fill in with the new stats
+
+        Returns:
+            None
+        """
+        return self._browser.retrieve_team_number(team_name)
+
     def fill_team_stats(self, team: Team) -> None:
         """
         Fills in the stats for the given team based on team number
@@ -53,7 +65,7 @@ class Gankster:
         """
         return
 
-    def process_scrim_requests(self, scrim: Scrim, accept:bool=True) -> bool:
+    def process_scrim_request(self, scrim: Scrim, accept:bool=True) -> bool:
         """
         Accepts/Declines the given scrim request
 
@@ -77,9 +89,24 @@ class Gankster:
 
     def cancel_scrim_request(self, scrim: Scrim) -> None:
         """
-        Cancels a scrim request
+        Cancels an outgoing scrim request
 
         Args:
             scrim (Scrim): The scrim request to cancel
         """
         self._browser.cancel_scrim_request(scrim)
+
+    def cancel_all_scrim_requests(self) -> None:
+        """
+        Cancels all outgoing scrim requests
+        """
+        self._browser.cancel_scrim_request()
+
+    def send_scrim_request(self, scrim: Scrim) -> None:
+        """
+        Sends a scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to cancel
+        """
+        self._browser.send_scrim_request(scrim)

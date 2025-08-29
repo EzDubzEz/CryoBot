@@ -89,7 +89,7 @@ class GoogleAPI:
         if "error" in response:
             messages = response["error"]["details"][0]["errorMessage"].removeprefix("Error: ").split(": ")
             if messages[0] in (e.value for e in ErrorName):
-                raise CryoBotError(ErrorName(messages[0] ), messages[1])
+                raise CryoBotError(ErrorName(messages[0]), messages[1])
             raise CryoBotError(ErrorName.UNKNOWN, "", description=": ".join(messages))
 
     def found_scrim(self, scrim: Scrim) -> None:
@@ -108,7 +108,7 @@ class GoogleAPI:
 
         payload = {
             "function": "foundScrim",
-            "parameters": [scrim.team.name, scrim.team.number, scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrimFormat.games, scrim.scrimFormat.formatLong],
+            "parameters": [scrim.team.name, scrim.team.number, scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrimFormat.games, scrim.scrimFormat.format_long],
             "devMode": True
         }
         self._make_call(payload)

@@ -76,7 +76,7 @@ class DiscordStuff:
         timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
         embed.add_field(name="Date", value=dateString, inline=True)
         embed.add_field(name="Time", value=timeString, inline=True)
-        embed.add_field(name="Format", value=scrim.scrimFormat.formatShort, inline=True)
+        embed.add_field(name="Format", value=scrim.scrimFormat.format_short, inline=True)
 
         embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/Enemy_Missing_ping.png")
 
@@ -104,7 +104,7 @@ class DiscordStuff:
         timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
         embed.add_field(name="Date", value=dateString, inline=True)
         embed.add_field(name="Time", value=timeString, inline=True)
-        embed.add_field(name="Format", value=scrim.scrimFormat.formatShort, inline=True)
+        embed.add_field(name="Format", value=scrim.scrimFormat.format_short, inline=True)
 
         rep = ""
         if scrim.team.reputation:
@@ -141,7 +141,7 @@ class DiscordStuff:
         timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
         embed.add_field(name="Date", value=dateString, inline=True)
         embed.add_field(name="Time", value=timeString, inline=True)
-        embed.add_field(name="Format", value=scrim.scrimFormat.formatShort, inline=True)
+        embed.add_field(name="Format", value=scrim.scrimFormat.format_short, inline=True)
 
         rep = ""
         if scrim.team.reputation:
@@ -168,7 +168,7 @@ class DiscordStuff:
             embed (Embed): the discord embed that should be posted
         """
         embed = discord.Embed(
-            title=f"Scrim Canceled vs {scrim.team.name}",
+            title=f"Scrim Cancelled vs {scrim.team.name}",
             description=f"Darn {scrim.team.name} how unreliable!",
             color=discord.Color.red()
         )
@@ -177,7 +177,7 @@ class DiscordStuff:
         timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
         embed.add_field(name="Date", value=dateString, inline=True)
         embed.add_field(name="Time", value=timeString, inline=True)
-        embed.add_field(name="Format", value=scrim.scrimFormat.formatShort, inline=True)
+        embed.add_field(name="Format", value=scrim.scrimFormat.format_short, inline=True)
 
         # rep = ""
         # if scrim.team.reputation:

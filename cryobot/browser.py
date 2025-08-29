@@ -21,10 +21,11 @@ class Browser:
         self._options.add_argument("--silent")
 
         # self._driver = webdriver.Chrome(options=self._options)
-        self._driver: webdriver.Chrome
+        self._driver: webdriver.Chrome = None
 
     def __del__(self):
-        self._driver.quit()
+        if isinstance(self._driver, webdriver.Chrome):
+            self._driver.quit()
 
     def _handle_driver(func):
         def wrapper(self, *args, **kwargs):
@@ -95,6 +96,39 @@ class Browser:
 
         Args:
             scrim (Scrim): The scrim request to cancel
+        """
+        return
+
+    @_handle_driver
+    def cancel_all_scrim_requests(self, scrim: Scrim) -> None:
+        """
+        Cancels a scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to cancel
+        """
+        return
+
+    @_handle_driver
+    def send_scrim_request(self, scrim: Scrim) -> None:
+        """
+        Cancels a scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to cancel
+        """
+        return
+
+    @_handle_driver
+    def retrieve_team_number(self,team_name: str) -> str:
+        """
+        Retrieves the team number for a given team
+
+        Args:
+            team_name (str): The name of the team to search
+
+        Returns:
+            str: the team number for the given team
         """
         return
 

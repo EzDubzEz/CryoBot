@@ -10,6 +10,7 @@ constants = {
     "CRYOBARK_ROLE_ID": "1405677183988666410",
     "MANAGER_ROLE_ID": "1291840665335894027",
     "GOOGLE_SCOPES": ["https://www.googleapis.com/auth/script.external_request", "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/spreadsheets"],
+    "ZINSKI_ODDS": .01,
 }
 
 DEBUG_MODE = constants["DEBUG_MODE"]

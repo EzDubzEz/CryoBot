@@ -16,10 +16,20 @@ class ScrimFormat(Enum):
     FIVE_GAMES = ("5 Games", "Five Games", 5)
     NONE = ("None", "None", 0)
 
-    def __init__(self, formatShort: str, formatLong: str, games: int):
-        self.formatShort = formatShort
-        self.formatLong = formatLong
+    def __init__(self, format_short: str, format_long: str, games: int):
+        self.format_short = format_short
+        self.format_long = format_long
         self.games = games
+    
+    def from_short(short: str): 
+        for sf in ScrimFormat:
+            if sf.format_short == short:
+                return sf
+    
+    def from_long(long: str): 
+        for sf in ScrimFormat:
+            if sf.format_long == long:
+                return sf
 
 class Tier(Enum):
     IRON = "Iron"
@@ -74,8 +84,8 @@ class Reputation:
 @dataclass
 class Team:
     """Class representing a gankster team"""
-    number: str
-    name: str
+    number: str = ""
+    name: str = ""
     rank: str = "" #Team ranks are different than individual rank
     region: str = ""
     bio: str = ""

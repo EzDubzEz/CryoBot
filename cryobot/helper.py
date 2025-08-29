@@ -11,6 +11,7 @@ constants = {
     "MANAGER_ROLE_ID": "1291840665335894027",
     "GOOGLE_SCOPES": ["https://www.googleapis.com/auth/script.external_request", "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/spreadsheets"],
     "ZINSKI_ODDS": .01,
+    "TREBOTEHTREE": "306170246232801290",
 }
 
 DEBUG_MODE = constants["DEBUG_MODE"]

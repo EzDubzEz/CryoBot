@@ -1,25 +1,25 @@
-from helper import getVariable
-from scrim_classes import Scrim, ScrimFormat, Team, ErrorName, CryoBotError
-import requests
-from google_auth_oauthlib.flow import InstalledAppFlow
 import os
-import requests
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
 import pathlib
 import subprocess
-from datetime import datetime
 
-GOOGLE_SCOPES = getVariable("GOOGLE_SCOPES")
-CLIENT_ID = getVariable("CLIENT_ID")
-CLIENT_SECRET = getVariable("CLIENT_SECRET")
-GOOGLE_URL = getVariable("GOOGLE_URL")
+from aiohttp import ClientSession
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+from helper import getVariable
+from scrim_classes import CryoBotError, ErrorName, Scrim
+
+GOOGLE_SCOPES: list[str] = getVariable("GOOGLE_SCOPES")
+CLIENT_ID: int = getVariable("CLIENT_ID")
+CLIENT_SECRET: str = getVariable("CLIENT_SECRET")
+GOOGLE_URL: str = getVariable("GOOGLE_URL")
 
 class GoogleAPI:
     def __init__(self):
-        self._creds = self._getCreds()
+        self._creds = self._get_creds()
 
-    def _getCreds(self) -> Credentials:
+    def _get_creds(self) -> Credentials:
         creds = None
         if os.path.exists('google_auth_token.json'):
             creds = Credentials.from_authorized_user_file('google_auth_token.json', GOOGLE_SCOPES)
@@ -34,7 +34,7 @@ class GoogleAPI:
         self._headers = {"Authorization": f"Bearer {creds.token}","Content-Type": "application/json"}
         return creds
 
-    def setupCreds(self) -> None:
+    def setup_creds(self) -> None:
         """
         Opens a browser and goes to link to let the user authenticate
         Should be called manually, not by another class
@@ -67,7 +67,7 @@ class GoogleAPI:
         with open('google_auth_token.json', 'w') as token_file:
             token_file.write(self._creds.to_json())
 
-    def refreshCreds(self)->None:
+    async def refresh_creds(self)->None:
         """
         Call occasionally to just keep auth going good and creds refreshed
 
@@ -76,15 +76,19 @@ class GoogleAPI:
         """
         self._creds.refresh(Request())
         try:
-            self.update_scrim_results()
+            await self.update_scrim_results()
         except:
             pass
 
-    def isAuthSetup(self) -> bool:
+    def is_auth_setup(self) -> bool:
         return self._creds != None
 
-    def _make_call(self, payload):
-        response = requests.post(GOOGLE_URL, headers=self._headers, json=payload).json()
+    async def _make_call(self, payload):
+        if not self.is_auth_setup():
+            raise CryoBotError(ErrorName.AUTH_NOT_SETUP, fields="D:")
+        async with ClientSession() as session:
+            async with session.post(GOOGLE_URL, headers=self._headers, json=payload) as resp:
+                response = await resp.json()
 
         if "error" in response:
             messages = response["error"]["details"][0]["errorMessage"].removeprefix("Error: ").split(": ")
@@ -92,7 +96,7 @@ class GoogleAPI:
                 raise CryoBotError(ErrorName(messages[0]), messages[1])
             raise CryoBotError(ErrorName.UNKNOWN, "", description=": ".join(messages))
 
-    def found_scrim(self, scrim: Scrim) -> None:
+    async def found_scrim(self, scrim: Scrim) -> None:
         """
         Adds/Fills the team to the scouting doc, then adds a page to the Scrim Results sheet
 
@@ -108,12 +112,12 @@ class GoogleAPI:
 
         payload = {
             "function": "foundScrim",
-            "parameters": [scrim.team.name, scrim.team.number, scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrimFormat.games, scrim.scrimFormat.format_long],
+            "parameters": [scrim.team.name, scrim.team.number, scrim.team.opggLink, scrim.time.strftime("%m/%d/%Y"), scrim.scrim_format.games, scrim.scrim_format.format_long],
             "devMode": True
         }
-        self._make_call(payload)
+        await self._make_call(payload)
 
-    def cancel_scrim(self, scrim: Scrim) -> None:
+    async def cancel_scrim(self, scrim: Scrim) -> None:
         """
         Removes scrim from the scrim results sheet
 
@@ -131,9 +135,9 @@ class GoogleAPI:
             "parameters": [scrim.team.name, scrim.time.strftime("%m/%d/%Y")],
             "devMode": True
         }
-        self._make_call(payload)
+        await self._make_call(payload)
 
-    def update_scrim_results(self) -> None:
+    async def update_scrim_results(self) -> None:
         """
         Updates the scrim results sheet, should be called after a scrim block is played
 
@@ -150,9 +154,9 @@ class GoogleAPI:
             "function": "updateScrimResults",
             "devMode": True
         }
-        self._make_call(payload)
+        await self._make_call(payload)
 
-    def reset_scrim_results_data(self) -> None:
+    async def reset_scrim_results_data(self) -> None:
         """
         Reloads all of the scrim result data, this takes a while
 
@@ -169,15 +173,7 @@ class GoogleAPI:
             "function": "resetScrimResultsData",
             "devMode": True
         }
-        self._make_call(payload)
-    pass
-
+        await self._make_call(payload)
 
 if __name__ == "__main__":
-    team = Team("84830", "Cryobarkers", opggLink="https://op.gg/lol/summoners/na/TreboTehTree-NA1")
-    scrim = Scrim(datetime.now(), ScrimFormat.BEST_OF_THREE, team=team)
-    # GoogleAPI().found_scrim(scrim)
-    # GoogleAPI().updateScrimResults()
-    # GoogleAPI().setupCreds()
-    GoogleAPI().cancel_scrim(scrim)
-    # GoogleAPI().testing()
+    GoogleAPI().setup_creds()

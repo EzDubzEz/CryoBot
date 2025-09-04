@@ -1,6 +1,7 @@
 from scrim_classes import Scrim, Team, Player
 from gankster_api import GanksterAPI
 from browser import Browser
+from scrim_classes import Scrim, Team
 
 class Gankster:
     def __init__(self):
@@ -10,14 +11,25 @@ class Gankster:
     def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
         """
         Retrieves a list of scrim requests the team has sent out
-        
+
         Args:
             team (Team): The team to view outgoing scrims for
 
         Returns:
             list[Scrim]: The list of outgoing scrim requests, team unknown
         """
-        return
+        # scrims = []
+        # for _ in range(int(input("Scrims: "))):
+        #     number = input("Number: ")
+        #     name = input("Name: ")
+        #     # rank = input("Rank: ")
+        #     format = ScrimFormat.from_short(input("Format: "))
+        #     time = datetime.strptime(input("Datetime (2025-09-03 14:30:00): "), "%Y-%m-%d %H:%M:%S")
+        #     team = Team(number=number, name=name)
+        #     open = not (name or number)
+        #     scrims.append(Scrim(time=time, scrim_format=format, team=team, open=open))
+        # return scrims
+        return []
 
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
         """

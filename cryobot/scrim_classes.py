@@ -20,12 +20,12 @@ class ScrimFormat(Enum):
         self.format_short = format_short
         self.format_long = format_long
         self.games = games
-    
+
     def from_short(short: str): 
         for sf in ScrimFormat:
             if sf.format_short == short:
                 return sf
-    
+
     def from_long(long: str): 
         for sf in ScrimFormat:
             if sf.format_long == long:
@@ -95,16 +95,36 @@ class Team:
     created: datetime = None
     reputation: Reputation = None
 
+    def __eq__(self, other):
+        if isinstance(other, Team):
+            if self.number == other.number and self.number:
+                return True
+            if self.name == other.name and self.name:
+                return True
+        return False
+
 @dataclass
 class Scrim:
     time: datetime
-    scrimFormat: ScrimFormat = ScrimFormat.NONE
+    scrim_format: ScrimFormat = ScrimFormat.NONE
     team: Team = None
     open: bool = True
+
+    def __eq__(self, other):
+        if isinstance(other, Scrim):
+            return self.time == other.time and self.scrim_format == other.scrim_format
+        return False
+
+    def __hash__(self):
+        return hash((self.time, self.scrim_format))
+
+    # def __repr__(self):
+    #     return f"<Scrim {self.scrim_format.name} at {self.date_time}>"
 
 class ErrorName(Enum):
     NONE = "None"
     UNKNOWN = "Unknown"
+    AUTH_NOT_SETUP = "AuthNotSetup"
     TEAM_NAME_NULL = "TeamNameNull"
     TEAM_NUMBER_NULL = "TeamNumberNull"
     DATE_NULL = "DateNull"
@@ -136,6 +156,7 @@ class ErrorName(Enum):
 ERROR_DESCRIPTIONS = {
     ErrorName.NONE: "No Issue",
     ErrorName.UNKNOWN: "No clue what went wrong",
+    ErrorName.AUTH_NOT_SETUP: "Auth Not Setup On Raspberry Pi",
     ErrorName.TEAM_NAME_NULL: "Team name is missing",
     ErrorName.TEAM_NUMBER_NULL: "Team number is missing",
     ErrorName.DATE_NULL: "Date is missing",

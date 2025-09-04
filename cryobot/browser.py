@@ -9,7 +9,7 @@ import traceback
 from helper import debugPrint, getVariable
 from scrim_classes import Scrim
 
-TEAM_LINK = getVariable("TEAM_LINK")
+TEAM_LINK: str = getVariable("TEAM_LINK")
 
 class Browser:
     def __init__(self):

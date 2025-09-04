@@ -2,11 +2,9 @@
 Cryobark Discord Bot
 
 # TODO:
-- Send a poll every saturday night for the next week
-- Track when we get a scrim pending/confimred and sending messages in chat
-- Look into Selenium/etc. to scrape scrim team information for the bot to use
-- Call the cryobark google API to create the scouting doc and update scrim results sheet
-- After a scrim should be finished check to see if the sheet is filled out and update it, notify Trevor if anything goes wrong
+- Setup gankster api calls to retrieve_incoming_scrim_requests (without team information), fill_team_stats, and fill_player_stats
+- Look into gankster api cookies to retrieve_incoming_scrim_requests (with team information), scrims listed, incoming scrim requests, etc. whatever is possible 
+- Setup Selenium to scrape scrim team information for the bot to use and navigate gankster scrim creation etc.
 
 # Selenium Setup
 - You need to manually log into gankster for chrome, and gankster/google/riot don't let you log in if selenium opens the browser so that must be done manually aswell
@@ -14,6 +12,9 @@ Cryobark Discord Bot
 - Open command prompt and run the command 
 - - & "C:\Program Files\Google\Chrome\Application\chrome.exe" '--profile-directory=Default' '--user-data-dir="<ChromeProfileDirectory\>"' 
 - - replacing <ChromeProfileDirectory\> with the ChromeProfile absolute file path ex. "C:\Users\Trevor\OneDrive\Documents\Code\CryoBot\ChromeProfile"
-
 - Log into gankster and **choose remember me**
 - Close the window
+
+# Google API Setup
+- Run google_api.py as main
+- In the newly opened browser window allow the selected permissions

@@ -89,9 +89,11 @@ class CryoBot:
                 debugPrint(f"Starting repeating updating scrim status loop")
             except Exception as e:
                 debugPrint(f"Failed to start repeating updating scrim status loop: {e}")
-            scrim = Scrim(datetime.now(), ScrimFormat.from_short("Bo3"), team=Team(number="84830", name="Cryobark", rank="Gold/Platinum", opggLink="https://www.op.gg/multisearch/na?summoners=DiamondPhoenix22%23NA1,Sp6rtan%23666,Superice%2300000,TreboTehTree%23NA1,BenAndM%23NA1", reputation=Reputation("4.79")), open=False)
-            await self._scrim_request_booked(scrim)
-            await self._scrim_played(scrim)
+            try:
+                reset_gankster_teams.start()
+                debugPrint(f"Starting repeating resetting gankster teams loop")
+            except Exception as e:
+                debugPrint(f"Failed to start repeating resetting gankster teams loop: {e}")
 
         @tasks.loop(time=time(hour=4, tzinfo=ZoneInfo("America/New_York")))
         async def post_weekly_poll():
@@ -205,6 +207,10 @@ class CryoBot:
                 if scrim not in new_scrims:
                     self._current_scrims.remove(scrim)
                     await self._scrim_request_created_cancelled(scrim) # GUD
+
+        @tasks.loop(time=time(hour=4))
+        async def reset_gankster_teams():
+            self._gankster.teams = {}
 
         @self._bot.tree.command(name="hello_world2", description="Prints Hello World",  guild=discord.Object(id=GUILD_ID))
         async def hello_world2(interaction: discord.Interaction, number: str):

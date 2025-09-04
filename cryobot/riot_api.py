@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from helper import getVariable
 from time import sleep
 
-RIOT_API_KEY = getVariable("RIOT_API_KEY")
+RIOT_API_KEY: str = getVariable("RIOT_API_KEY")
 
 class RiotAPI:
     param = {'api_key' : RIOT_API_KEY}

@@ -7,6 +7,7 @@ class Gankster:
     def __init__(self):
         self._gankster_api = GanksterAPI()
         self._browser = Browser()
+        self.teams = {}
 
     def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
         """
@@ -29,8 +30,27 @@ class Gankster:
         #     open = not (name or number)
         #     scrims.append(Scrim(time=time, scrim_format=format, team=team, open=open))
         # return scrims
-        return []
+        scrims: list[Scrim] = []
+        # scrims = self._gankster_api.get_outgoing_scrims
 
+        # If Booked Scrim Fetch Team With Selenium
+        booked = False
+        for scrim in scrims:
+            if not scrim.open:
+                booked = True
+                break
+        if booked:
+            booked_scrims = self._browser.retrieve_booked_scrim_requests()
+            for scrim in scrims:
+                if not scrim.open:
+                    team = booked_scrims[booked_scrims.index(scrim)].team
+                    # Add Team To Dict To Avoid Excessive Calls
+                    if team not in self.teams:
+                        self.fill_team_stats(team)
+                        self.teams[team.number] = team
+                    scrim.team = self.teams[team.number]
+
+        return scrims
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
         """
         Retrieves a list of incoming scrim requests to the default user
@@ -39,7 +59,7 @@ class Gankster:
         Returns:
             list[Scrim]: The list of incoming scrim requests with filled in team
         """
-        return self._browser.retrieve_scrim_requests()
+        return self._browser.retrieve_incoming_scrim_requests()
 
     def retrieve_team_number(self, team_name: str) -> str:
         """

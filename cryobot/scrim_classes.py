@@ -103,6 +103,9 @@ class Team:
                 return True
         return False
 
+    def __str__(self):
+        return f"<Team: name='{self.name}', number={self.number}>"
+
 @dataclass
 class Scrim:
     time: datetime
@@ -117,6 +120,10 @@ class Scrim:
 
     def __hash__(self):
         return hash((self.time, self.scrim_format))
+
+    def __str__(self):
+        return f"<Scrim: time='{self.time.strftime('%m/%d/%y %I:%M %p')}', format='{self.scrim_format.format_short}', team={str(self.team)}, open={self.open}>"
+
 
     # def __repr__(self):
     #     return f"<Scrim {self.scrim_format.name} at {self.date_time}>"

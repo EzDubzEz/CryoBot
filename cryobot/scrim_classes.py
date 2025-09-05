@@ -147,6 +147,10 @@ class ErrorName(Enum):
     INVALID_ENEMY_PICK_ORDER = "InvalidEnemyPickOrder"
     MISSING_CRYOBARK_SIDE_NAME = "MissingCryobarkSideName"
     MISSING_ENEMY_SIDE_NAME = "MissingEnemySideName"
+    INCORRECT_ENEMY_SIDE_NAME = "IncorrectEnemySideName"
+    INVALID_TEAM_NAME = "InvalidTeamName"
+    MISSING_TEAM_NUMBER = "MissingTeamNumber"
+    INVALID_TEAM_NUMBER = "InvalidTeamNumber"
     INVALID_CHAMP_NAME = "InvalidChampName"
     INVALID_BLUE_PICK_ORDER = "InvalidBluePickOrder"
     INVALID_RED_PICK_ORDER = "InvalidRedPickOrder"
@@ -159,6 +163,8 @@ class ErrorName(Enum):
     INVALID_GAME_RECORD = "InvalidGameRecord"
     INVALID_BLOCK_FORMAT = "InvalidBlockFormat"
     MISSING_GAME_RECORD = "MissingGameRecord"
+    SCOUTING_TEAM_NOT_FOUND = "ScoutingTeamNotFound"
+    NO_TEAM_OUTGOING_SCRIM_REQUEST = "NoTeamOutgoingScrimRequest"
 
 ERROR_DESCRIPTIONS = {
     ErrorName.NONE: "No Issue",
@@ -179,6 +185,10 @@ ERROR_DESCRIPTIONS = {
     ErrorName.INVALID_ENEMY_PICK_ORDER: "Enemy pick order list is the wrong size",
     ErrorName.MISSING_CRYOBARK_SIDE_NAME: "The side Cryobark is on is missing for the given game",
     ErrorName.MISSING_ENEMY_SIDE_NAME: "The side the enemy team is on is missing for the given game",
+    ErrorName.INCORRECT_ENEMY_SIDE_NAME: "The side the enemy team is on is incorrecetly named for the given game",
+    ErrorName.INVALID_TEAM_NAME: "The given team name conflicts with the days results for the given day",
+    ErrorName.MISSING_TEAM_NUMBER: "The given team name is not found in the scouting report",
+    ErrorName.INVALID_TEAM_NUMBER: "The provided team number in the scrim results doesn't match the scouting document",
     ErrorName.INVALID_CHAMP_NAME: "Champion name is either misspelled or improperly capitalized/formatted",
     ErrorName.INVALID_BLUE_PICK_ORDER: "Blue team pick order is wrong",
     ErrorName.INVALID_RED_PICK_ORDER: "Red team pick order is wrong",
@@ -191,6 +201,8 @@ ERROR_DESCRIPTIONS = {
     ErrorName.INVALID_GAME_RECORD: "Game record is unobtanable for the given format and date",
     ErrorName.INVALID_BLOCK_FORMAT: "Scrim block format is invalid",
     ErrorName.MISSING_GAME_RECORD: "Game record is missing for the given date",
+    ErrorName.SCOUTING_TEAM_NOT_FOUND: "Team was not found in scouting report when attempting update",
+    ErrorName.NO_TEAM_OUTGOING_SCRIM_REQUEST: "The given team did not have an outgoing scrim request so I can't send a scrim request",
 }
 
 @dataclass

@@ -13,6 +13,8 @@ Cryobark Discord Bot
 - - & "C:\Program Files\Google\Chrome\Application\chrome.exe" '--profile-directory=Default' '--user-data-dir="<ChromeProfileDirectory\>"' 
 - - replacing <ChromeProfileDirectory\> with the ChromeProfile absolute file path ex. "C:\Users\Trevor\OneDrive\Documents\Code\CryoBot\ChromeProfile"
 - Log into gankster and **choose remember me**
+- Click view site information button (leftmost of browser search)
+- Allow notifications in site settings (prevents a popup) 
 - Close the window
 
 - Download chromedriver from [here](https://googlechromelabs.github.io/chrome-for-testing/) matching your chrome version and save it to a folder

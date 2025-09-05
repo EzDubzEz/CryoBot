@@ -6,22 +6,22 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import WebDriverException 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pathlib
 import traceback
 from helper import debugPrint, getVariable
-from scrim_classes import Scrim, ScrimFormat, Team
+from scrim_classes import Scrim, ScrimFormat, Team, CryoBotError, ErrorName
 from time import sleep
 
 
 TEAM_LINK: str = getVariable("TEAM_LINK")
 
 class Browser:
-    a = "Hi"
     def __init__(self):
         self._options = Options()
         self._options.add_argument("--start-maximized")
+        # self._options.add_argument("--window-size=1200,800")
         self._options.add_argument(f"--user-data-dir={pathlib.Path().resolve()}/ChromeProfile")
         self._options.add_argument("--profile-directory=Default")
         self._options.add_argument("--log-level=3")
@@ -161,7 +161,26 @@ class Browser:
         Args:
             scrim (Scrim): The scrim request to create
         """
-        return
+        # Click Search Button -> Wait For Search Page To Appear
+        self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-flag')]]").click()
+        WebDriverWait(self._driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'LfsListHeader')]")))
+        # scroll to either date //div[contains(text(), ', 20 Sep')] or end //div[text()="That's it for now..."]
+        # (//div[contains(@class, 'LFSList__DayBox')])[last()]
+        start = datetime.now()
+        while datetime.now() - start < timedelta(seconds=60):
+            element = self._driver.find_element(By.XPATH, "(//div[contains(@class, 'LFSList__DayBox')])[last()]")
+            latestTime = datetime.strptime(element.text[-6:], '%d %b')
+            if latestTime > scrim.time:
+                break
+            self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+            WebDriverWait(self._driver, 1).until(expected_conditions.visibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
+            WebDriverWait(self._driver, 10).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
+            if len(self._driver.find_elements(By.XPATH, f"//div[contains(text(), ', {scrim.time.strftime('%d %b')}')]|//div[text()=\"That's it for now...\"]")):
+                break
+        # element = WebDriverWait(self._driver, 30).until(expected_conditions.visibility_of_element_located((By.XPATH, f"//div[contains(text(), ', {scrim.time.strftime('%d %b')}')]|//div[text()=\"That's it for now...\"]")))
+        # self._driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        print()
+        pass
 
     @_handle_driver
     def cancel_scrim_request(self, scrim: Scrim) -> None:
@@ -186,12 +205,69 @@ class Browser:
     @_handle_driver
     def send_scrim_request(self, scrim: Scrim) -> None:
         """
-        Cancels a scrim request
+        Sends a scrim request to a given team
 
         Args:
-            scrim (Scrim): The scrim request to cancel
+            scrim (Scrim): The scrim request to send
         """
-        return
+        # Click Search Button -> Wait For Scrim Page To Appear
+        self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-flag')]]").click()
+        WebDriverWait(self._driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'LfsListHeader')]")))
+
+        start = datetime.now()
+        # End After Finding Team, Reaching End, Or Timeout
+        while not len(self._driver.find_elements(By.XPATH, f"//div[text()=\"That's it for now...\"] | //div[.//div[text()='{scrim.team.name}'] and contains(@class, 'PublicLFSItem')]//button")) and datetime.now() - start < timedelta(seconds=30):
+            # Scroll Final Scrim Listing To Load More
+            element = self._driver.find_element(By.XPATH, "(//div[contains(@class, 'LFSList__DayBox')])[last()]")
+            self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+
+            # Wait For More Teams To Load
+            WebDriverWait(self._driver, 1).until(expected_conditions.visibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
+            WebDriverWait(self._driver, 10).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
+
+        opens = self._driver.find_elements(By.XPATH, f"//div[.//div[text()='{scrim.team.name}'] and contains(@class, 'PublicLFSItem')]//button")
+        # Team Not Sending Out Scrim Request (No Premium D:)
+        if not len(opens):
+            raise CryoBotError(ErrorName.NO_TEAM_OUTGOING_SCRIM_REQUEST, fields=f"scrim={scrim}")
+
+        # Scroll Button Into View And Wait
+        self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", opens[0])
+        sleep(1)
+
+        # Click Open Button (To Create Scrim Request)
+        self._driver.find_element(By.XPATH, f"//div[.//div[text()='{scrim.team.name}'] and contains(@class, 'PublicLFSItem')]//button").click()
+
+        # Wait For Send Scrim Modal
+        WebDriverWait(self._driver, 2).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-modal-dialog']")))
+
+        # Set Time
+        self._driver.find_element(By.XPATH, "//div[contains(@class, 'ScrimEventModal__TimeFlex')]//a").click()
+        self._driver.find_element(By.XPATH, f"//li[text()='{scrim.time.strftime('%I:%M %p')}']").click()
+
+        # Select Date
+        self._driver.find_element(By.XPATH, "//div[contains(@class, 'ScrimEventModal__TimeFlex')]//div[contains(@class, 'DatePicker')]").click()
+        
+        start = datetime.now()
+        # Navigate Calendar To Correct Month/Year
+        while datetime.now() - start < timedelta(seconds=10):
+            selected_date = datetime.strptime(self._driver.find_element(By.XPATH, "//div[@class='rs-calendar']//span[contains(@class, 'rs-calendar-header')]").text, "%b %d, %Y")
+            if (selected_date.year, selected_date.month) < (scrim.time.year, scrim.time.month):
+                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-forward']").click()
+            elif (selected_date.year, selected_date.month) > (scrim.time.year, scrim.time.month):
+                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-backward']").click()
+            else:
+                break
+
+        # Select Date From Calendar
+        self._driver.find_element(By.XPATH, f"//div[@title='{scrim.time.strftime('%b %d, %Y')}']//span").click()
+
+        # Fill In Format
+        self._driver.find_element(By.XPATH, "//div[@class='rs-modal-dialog']//div[contains(@class, 'rs-picker-select')]").click()
+        self._driver.find_element(By.XPATH, f"//a[text()='{scrim.scrim_format.format_short}']").click()
+
+        # Send Request
+        self._driver.find_element(By.XPATH, "//button[text()='Send Request']").click()
+        WebDriverWait(self._driver, 2).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-notification-title-with-icon' and text()='Scrim request sent!']")))
 
     @_handle_driver
     def retrieve_team_number(self,team_name: str) -> str:
@@ -212,7 +288,7 @@ class Browser:
         self._driver.find_element(By.XPATH, "//input[@placeholder='Find Teams']").send_keys(team_name)
 
         # Wait For Search Results To Load
-        WebDriverWait(self._driver, 1).until(expected_conditions.presence_of_element_located((By.XPATH, "//div[contains(@class, 'SearchPanel')]//i[contains(@class, 'spinner')]")))
+        WebDriverWait(self._driver, 1).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'SearchPanel')]//i[contains(@class, 'spinner')]")))
         WebDriverWait(self._driver, 5).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//div[contains(@class, 'SearchPanel')]//i[contains(@class, 'spinner')]")))
 
         # Retrieve Team Link -> Parse Team Number
@@ -224,10 +300,13 @@ class Browser:
         return ""
 
 if __name__ == "__main__":
-    # browser = Browser()
-    # for _ in range(10):
+    browser = Browser()
+    # for _ in range(100):
     #     if browser.retrieve_team_number('TD Tidal') != "85190":
     #         print("Missed")
+    # browser.send_scrim_request(Scrim(datetime.strptime('09/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.create_scrim_request(Scrim(datetime.strptime('09/07/25 10:00',
+    #               '%m/%d/%y %H:%M'), ScrimFormat.BEST_OF_THREE))
     # print(f"Team Link: {browser.retrieve_team_number('TD Tidal')}")
     # print(f"Team Link: {browser.retrieve_team_number('TestingT')}")
     # print(datetime.strptime("Jan 1, 12:00am 2025", "%b %d, %I:%M%p %Y"))
@@ -238,7 +317,7 @@ if __name__ == "__main__":
     # print(end - start)
     # browser.retrieve_scrim_requests()
     # print(datetime.now() - end)
-    a = Browser().retrieve_booked_scrim_requests()
-    # print("Done4")
-    for aa in a:
-        print(aa)
+    # a = Browser().retrieve_booked_scrim_requests()
+    # # print("Done4")
+    # for aa in a:
+    #     print(aa)

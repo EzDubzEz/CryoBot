@@ -177,6 +177,7 @@ class ErrorName(Enum):
     SCRIM_REQUEST_NOT_FOUND = "ScrimRequestNotFound"
     GANKSTER_UNAVAILIBLE = "GanksterUnavailible"
     NO_SCRIM_BLOCK_FOUND = "NoScrimBlockFound"
+    GANKSTER_FAILED = "GanksterFailed"
 
 ERROR_DESCRIPTIONS = {
     ErrorName.NONE: "No Issue",
@@ -217,7 +218,8 @@ ERROR_DESCRIPTIONS = {
     ErrorName.NO_TEAM_OUTGOING_SCRIM_REQUEST: "The given team did not have an outgoing scrim request so I can't send a scrim request",
     ErrorName.SCRIM_REQUEST_NOT_FOUND: "There was no scrim request matching the provided scrim found within the notifications to accept/decline",
     ErrorName.GANKSTER_UNAVAILIBLE: "Gankster is down at the moment, please try again later",
-    ErrorName.NO_SCRIM_BLOCK_FOUND: "Could not find the given scrim block sceduled for team Cryobark"
+    ErrorName.NO_SCRIM_BLOCK_FOUND: "Could not find the given scrim block sceduled for team Cryobark",
+    ErrorName.GANKSTER_FAILED: "The given function's success condition failed to be met"
 }
 
 @dataclass

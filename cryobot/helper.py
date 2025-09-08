@@ -5,7 +5,8 @@ from scrim_classes import Team
 
 constants = {
     "DEBUG_MODE": True,
-    "TEAM_LINK": "https://lol.gankster.gg/teams/84830/cryobark",
+    "TEAM_LINK": "https://lol.gankster.gg/teams/107750/testingt",
+    # "TEAM_LINK": "https://lol.gankster.gg/teams/84830/cryobark",
     "CHANNEL_ID": 1378457387442245702,
     "GUILD_ID": 378727445903441930,
     # "CRYOBARK_ROLE_ID": 1405677183988666410,

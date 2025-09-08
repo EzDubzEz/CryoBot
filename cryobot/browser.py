@@ -17,12 +17,12 @@ from time import sleep
 
 TEAM_LINK: str = getVariable("TEAM_LINK")
 DATETIME_CHARACTER: str = getVariable("DATETIME_CHARACTER")
+CHROMEDRIVER_PATH: str = getVariable("CHROMEDRIVER_PATH")
 
 class Browser:
     def __init__(self):
         self._options = Options()
         self._options.add_argument("--window-size=1920,1080")
-        self._options.add_argument("--headless=new")
         self._options.add_argument("--headless=new")
         self._options.add_argument("--no-sandbox")
         self._options.add_argument(f"--user-data-dir={pathlib.Path().resolve()}/ChromeProfile")
@@ -42,7 +42,7 @@ class Browser:
         def wrapper(self: "Browser", *args, **kwargs):
             try:
                 # Open To Cryobark Page And Wait For It To Load
-                self._driver = webdriver.Chrome(options=self._options)
+                self._driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=self._options)
                 self._driver.get(TEAM_LINK)
 
                 # Wait For Cryobark Page To Load

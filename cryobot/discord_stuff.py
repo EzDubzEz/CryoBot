@@ -1,5 +1,5 @@
 import discord
-from scrim_classes import Scrim
+from scrim_classes import Scrim, Team
 from helper import getVariable, ordinal
 from random import random
 from datetime import timedelta
@@ -385,3 +385,6 @@ class DiscordStuff:
         embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/On_My_Way_ping.png") #I updated this on the wiki so I could use the correct looking one :D
 
         return embed
+
+    def create_team_data_embed(team: Team) -> discord.Embed:
+        return None

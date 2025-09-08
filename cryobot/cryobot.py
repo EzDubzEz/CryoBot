@@ -43,8 +43,6 @@ class CryoBot:
         debugPrint("Starting Gankster")
         self._gankster = Gankster()
 
-        self._gankster.fill_team_stats(CRYOBARK)
-
         # intents = discord.Intents.all()
         intents = discord.Intents.none()
         intents.guilds = True
@@ -97,6 +95,7 @@ class CryoBot:
                 debugPrint(f"Starting repeating resetting gankster teams loop")
             except Exception as e:
                 debugPrint(f"Failed to start repeating resetting gankster teams loop: {e}")
+            await self._gankster.fill_team_stats(CRYOBARK)
 
         @tasks.loop(time=time(hour=4, tzinfo=ZoneInfo("America/New_York")))
         async def post_weekly_poll():
@@ -158,7 +157,7 @@ class CryoBot:
                     self._played_scrims.pop(scrim)
                     await self._scrim_played(scrim)
 
-            new_scrims = self._gankster.retrieve_outgoing_scrims(CRYOBARK)
+            new_scrims = await self._gankster.retrieve_outgoing_scrims(CRYOBARK)
             for new_scrim in new_scrims:
                 if new_scrim in self._current_scrims:
                     for old_scrim in self._current_scrims:
@@ -231,50 +230,7 @@ class CryoBot:
 
         @tasks.loop(time=time(hour=4))
         async def reset_gankster_teams():
-            self._gankster.teams = {}
-
-        @self._bot.tree.command(name="hello_world2", description="Prints Hello World",  guild=discord.Object(id=GUILD_ID))
-        async def hello_world2(interaction: discord.Interaction, number: str):
-            debugPrint(f"Attempting to print \"Hello World: {number}\"")
-            await interaction.response.send_message(f"Hello World: {number}")
-
-        @self._bot.tree.command(name="one", guild=discord.Object(id=GUILD_ID))
-        async def one(interaction: discord.Interaction): # TODO: Make this not a command and be automatic
-            scrim = Scrim(datetime.now(), ScrimFormat.THREE_GAMES)
-            embed = DiscordStuff.create_scrim_request_created_embed(scrim)
-
-            await interaction.response.send_message(embed=embed)
-            self.scrimRequests.append(await interaction.original_response())
-
-        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
-        async def two(interaction: discord.Interaction):# TODO: Make this not a command and be automatic
-            for message in self.scrimRequests:
-                await message.delete()
-            self.scrimRequests = []
-            for message in self.scrimFounds:
-                await message.delete()
-            self.scrimFounds = []
-            await interaction.response.send_message("done")
-
-        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
-        async def three(interaction: discord.Interaction):# TODO: Make this not a command and be automatic
-            await self.scrimRequests.pop(0).delete()
-            rep = Reputation("4.79")
-            team = Team("84830", "Cryobarkers", "Gold/Platinum", opggLink="https://www.op.gg/multisearch/na?summoners=DiamondPhoenix22%23NA1,Sp6rtan%23666,Superice%2300000,TreboTehTree%23NA1,BenAndM%23NA1", reputation=rep)
-            scrim = Scrim(datetime.now(), ScrimFormat.THREE_GAMES, team)
-            # embed = DiscordStuff.create_scrim_request_booked_embed(scrim)
-            embed = DiscordStuff.create_scrcim_request_recieved_embed(scrim)
-            await interaction.response.send_message(content="<@&378729316990713856>", embed=embed)
-            self.scrimFounds.append(await interaction.original_response())
-
-        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
-        async def four(interaction: discord.Interaction):# TODO: Make this not a command and be automatic
-            await self.scrimFounds.pop(0).delete()
-            team = Team("84830", "Cryobarkers", "Gold/Platinum", opggLink="https://www.op.gg/multisearch/na?summoners=DiamondPhoenix22%23NA1,Sp6rtan%23666,Superice%2300000,TreboTehTree%23NA1,BenAndM%23NA1")
-            scrim = Scrim(datetime.now(), ScrimFormat.THREE_GAMES, team)
-            embed = DiscordStuff.create_scrim_request_found_cancelled_embed(scrim)
-
-            await interaction.response.send_message(content="<@&378729316990713856>", embed=embed)
+            self._gankster.reset_teams()
 
         def _handle_interaction_error(func):
             @functools.wraps(func)
@@ -346,7 +302,7 @@ class CryoBot:
                 return
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format)) 
             await interaction.response.defer()
-            self._gankster.create_scrim_request(scrim)
+            await self._gankster.create_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Created")
             await interaction.followup.send("Scrim Request Sucessfully Created")
 
@@ -362,7 +318,7 @@ class CryoBot:
                 return
             scrim = Scrim(scrimTime) 
             await interaction.response.defer()
-            self._gankster.cancel_scrim_request(scrim)
+            await self._gankster.cancel_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Cancelled")
             await interaction.followup.send("Scrim Request Sucessfully Cancelled")
 
@@ -378,7 +334,7 @@ class CryoBot:
                 return
             scrim = Scrim(scrimTime) 
             await interaction.response.defer()
-            self._gankster.cancel_scrim_request(scrim)
+            await self._gankster.cancel_scrim_block(scrim)
             debugPrint("Scrim Block Sucessfully Cancelled")
             await interaction.followup.send("Scrim Block Sucessfully Cancelled")
 
@@ -396,7 +352,7 @@ class CryoBot:
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
-            self._gankster.process_scrim_request(scrim, True)
+            await self._gankster.process_scrim_request(scrim, True)
             debugPrint("Scrim Request Sucessfully Accepted")
             await interaction.followup.send("Scrim Request Sucessfully Accepted")
 
@@ -414,7 +370,7 @@ class CryoBot:
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
-            self._gankster.process_scrim_request(scrim, False)
+            await self._gankster.process_scrim_request(scrim, False)
             debugPrint("Scrim Request Sucessfully Declined")
             await interaction.followup.send("Scrim Request Sucessfully Declined")
 
@@ -436,7 +392,7 @@ class CryoBot:
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
-            self._gankster.send_scrim_request(scrim)
+            await self._gankster.send_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Sent")
             await interaction.followup.send("Scrim Request Sucessfully Sent")
 
@@ -445,7 +401,7 @@ class CryoBot:
         async def retrieve_team_number(interaction: discord.Interaction, team_name: str):
             debugPrint(f"Attempting to retrieve team number: team_name='{team_name}'")
             await interaction.response.defer()
-            number = self._gankster.retrieve_team_number(team_name)
+            number = await self._gankster.retrieve_team_number(team_name)
             debugPrint("Team Number Sucessfully Retrieved")
             await interaction.followup.send(f"The Team [{team_name}] has the number {number}")
 
@@ -455,9 +411,10 @@ class CryoBot:
             debugPrint(f"Attempting to retrieve team number: team_number='{team_number}'")
             await interaction.response.defer()
             team = Team(team_number)
-            self._gankster.fill_team_stats(team)
-            debugPrint("Scrim Request Sucessfully Sent")
-            await interaction.followup.send("Scrim Request Sucessfully Sent")
+            await self._gankster.fill_team_stats(team)
+            debugPrint("Team Data Sucessfully Retrieved")
+            embed = DiscordStuff.create_team_data_embed(team)
+            await interaction.followup.send(embed=embed)
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @_handle_interaction_error

@@ -1,6 +1,7 @@
 from scrim_classes import Scrim, Team, Player
 from gankster_api import GanksterAPI
 from browser import Browser
+import asyncio
 from scrim_classes import Scrim, Team, CryoBotError, ErrorName
 from helper import getVariable
 
@@ -11,10 +12,11 @@ class Gankster:
     def __init__(self):
         self._gankster_api = GanksterAPI()
         self._browser = Browser()
-        self.teams = {CRYOBARK.number: CRYOBARK, WILDCARD_TEAM.number: WILDCARD_TEAM}
+        self.teams: dict[str, Team]
+        self.reset_teams()
         self._scrim_history = {}
 
-    def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
+    async def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
         """
         Retrieves a list of scrim requests the team has sent out
 
@@ -47,7 +49,7 @@ class Gankster:
 
         booked_scrim_teams = None
         try:
-            booked_scrim_teams = self._browser.retrieve_booked_scrim_requests()
+            booked_scrim_teams = await asyncio.to_thread(self._browser.retrieve_booked_scrim_requests)
         except CryoBotError as e:
             if e.name != ErrorName.GANKSTER_UNAVAILIBLE:
                 raise
@@ -69,7 +71,7 @@ class Gankster:
 
         return scrims
 
-    def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
+    async def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
         """
         Retrieves a list of incoming scrim requests to the default user
         Resource Intensive
@@ -77,9 +79,9 @@ class Gankster:
         Returns:
             list[Scrim]: The list of incoming scrim requests with filled in team
         """
-        return self._browser.retrieve_incoming_scrim_requests()
+        return await asyncio.to_thread(self._browser.retrieve_incoming_scrim_requests)
 
-    def retrieve_team_number(self, team_name: str) -> str:
+    async def retrieve_team_number(self, team_name: str) -> str:
         """
         Retrieves the team's number from their name
 
@@ -89,9 +91,9 @@ class Gankster:
         Returns:
             None
         """
-        return self._browser.retrieve_team_number(team_name)
+        return await asyncio.to_thread(self._browser.retrieve_team_number, team_name)
 
-    def fill_team_stats(self, team: Team) -> None:
+    async def fill_team_stats(self, team: Team) -> None:
         """
         Fills in the stats for the given team based on team number
 
@@ -103,7 +105,7 @@ class Gankster:
         """
         return
 
-    def fill_player_stats(self, player: Player) -> None:
+    async def fill_player_stats(self, player: Player) -> None:
         """
         Fills in the stats for the given player based on puuid
 
@@ -115,7 +117,7 @@ class Gankster:
         """
         return
 
-    def process_scrim_request(self, scrim: Scrim, accept:bool=True) -> bool:
+    async def process_scrim_request(self, scrim: Scrim, accept:bool=True) -> bool:
         """
         Accepts/Declines the given scrim request
 
@@ -126,37 +128,40 @@ class Gankster:
         Returns:
             bool: Whether or not the given scrim was found
         """
-        return self._browser.process_scrim_request(scrim, accept)
+        return await asyncio.to_thread(self._browser.process_scrim_request, scrim, accept)
 
-    def create_scrim_request(self, scrim: Scrim) -> None:
+    async def create_scrim_request(self, scrim: Scrim) -> None:
         """
         Creates a scrim request
 
         Args:
             scrim (Scrim): The scrim request to create
         """
-        self._browser.create_scrim_request(scrim)
+        await asyncio.to_thread(self._browser.create_scrim_request, scrim)
 
-    def cancel_scrim_request(self, scrim: Scrim) -> None:
+    async def cancel_scrim_request(self, scrim: Scrim) -> None:
         """
         Cancels an outgoing scrim request
 
         Args:
             scrim (Scrim): The scrim request to cancel
         """
-        self._browser.cancel_scrim_request(scrim)
+        await asyncio.to_thread(self._browser.cancel_scrim_request, scrim)
 
-    def cancel_scrim_block(self, scrim: Scrim, message: str) -> None:
+    async def cancel_scrim_block(self, scrim: Scrim, message: str) -> None:
         """
         Cancels all outgoing scrim requests
         """
-        self._browser.cancel_scrim_block()
+        await asyncio.to_thread(self._browser.cancel_scrim_block, scrim)
 
-    def send_scrim_request(self, scrim: Scrim) -> None:
+    async def send_scrim_request(self, scrim: Scrim) -> None:
         """
         Sends a scrim request
 
         Args:
             scrim (Scrim): The scrim request to cancel
         """
-        self._browser.send_scrim_request(scrim)
+        await asyncio.to_thread(self._browser.send_scrim_request, scrim)
+    
+    def reset_teams(self):
+        self.teams = {CRYOBARK.number: CRYOBARK, WILDCARD_TEAM.number: WILDCARD_TEAM}

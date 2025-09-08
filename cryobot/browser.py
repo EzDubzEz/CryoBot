@@ -16,12 +16,15 @@ from time import sleep
 
 
 TEAM_LINK: str = getVariable("TEAM_LINK")
+TEAM_LINK = "https://lol.gankster.gg/teams/107750/testingt"
 
 class Browser:
     def __init__(self):
         self._options = Options()
-        self._options.add_argument("--start-maximized")
-        # self._options.add_argument("--window-size=1200,800")
+        self._options.add_argument("--window-size=1920,1080")
+        self._options.add_argument("--headless=new")
+        self._options.add_argument("--headless=new")
+        self._options.add_argument("--no-sandbox")
         self._options.add_argument(f"--user-data-dir={pathlib.Path().resolve()}/ChromeProfile")
         self._options.add_argument("--profile-directory=Default")
         self._options.add_argument("--log-level=3")
@@ -211,10 +214,12 @@ class Browser:
 
         # Set Time
         self._driver.find_element(By.XPATH, "//div[./div[text()='TIME']]//a").click()
+        sleep(1)
         self._driver.find_element(By.XPATH, f"//li[text()='{scrim.time.strftime('%#I:%M %p')}']").click()
 
         # Fill In Format
         self._driver.find_element(By.XPATH, "//div[./div[text()='FORMAT']]//a").click()
+        sleep(1)
         self._driver.find_element(By.XPATH, f"//a[text()='{scrim.scrim_format.format_short}']").click()
 
         # Create Request
@@ -238,9 +243,9 @@ class Browser:
             CryoBotError: If issue occurs
         """
         # Look For Button To Cancel Specific Scrim Request
-        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Change LFS']")
+        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%#H:%M %p').lower()}']]//button[text()='Change LFS']")
         if not cancel_button:
-            return CryoBotError(ErrorName.NO_SCRIM_BLOCK_FOUND, f"scrim={scrim}" )
+            raise CryoBotError(ErrorName.NO_SCRIM_BLOCK_FOUND, f"scrim={scrim}" )
 
         self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", cancel_button[0])
         sleep(1)
@@ -267,8 +272,7 @@ class Browser:
             CryoBotError: If issue occurs
         """
         # Look For Button To Cancel Specific Scrim
-        a = f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Confirmed']"
-        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Confirmed']")
+        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%#H:%M %p').lower()}']]//button[text()='Confirmed']")
         if not cancel_button:
             raise CryoBotError(ErrorName.NO_SCRIM_BLOCK_FOUND, f"scrim={scrim}" )
 
@@ -276,7 +280,7 @@ class Browser:
         self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", cancel_button[0])
         sleep(1)
         cancel_button[0].click()
-#"//div[contains(@class,'LFSList__DayBox') and text()='Tue, 07 Oct']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='Tue, 07 Oct']][.//div[text()='10']]//button[text()='Confirmed']"
+
         # Click Cancel On Popup
         self._driver.find_element(By.XPATH, "//div[@class='rs-modal-content']//button[text()='Cancel Scrim']").click()
 
@@ -403,9 +407,9 @@ if __name__ == "__main__":
     #     if browser.retrieve_team_number('TD Tidal') != "85190":
     #         print("Missed")
     # browser.send_scrim_request(Scrim(datetime.strptime('12/09/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
-    # browser.create_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    browser.cancel_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
     # browser.cancel_scrim_block(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), "Cancellation")
-    browser.cancel_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.cancel_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
     # browser.process_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), True) #TODO Test
     # browser.create_scrim_request(Scrim(datetime.strptime('09/07/25 10:00',
     #               '%m/%d/%y %H:%M'), ScrimFormat.BEST_OF_THREE))

@@ -10,6 +10,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from helper import getVariable
 from scrim_classes import CryoBotError, ErrorName, Scrim
 
+CHROME_PATH: str = getVariable("CHROME_PATH")
 GOOGLE_SCOPES: list[str] = getVariable("GOOGLE_SCOPES")
 CLIENT_ID: int = getVariable("CLIENT_ID")
 CLIENT_SECRET: str = getVariable("CLIENT_SECRET")
@@ -55,7 +56,7 @@ class GoogleAPI:
         flow.redirect_uri = "http://localhost:8080/"
         auth_url, state = flow.authorization_url(prompt='consent')
         subprocess.Popen([
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            CHROME_PATH,
             "--profile-directory=Default",
             f"--user-data-dir={pathlib.Path().resolve()}/ChromeProfile",
             auth_url

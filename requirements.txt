@@ -1,0 +1,7 @@
+aiohttp
+discord.py
+google_auth_oauthlib
+protobuf
+python-dotenv
+Requests
+selenium

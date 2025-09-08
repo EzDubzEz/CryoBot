@@ -1,13 +1,18 @@
 from scrim_classes import Scrim, Team, Player
 from gankster_api import GanksterAPI
 from browser import Browser
-from scrim_classes import Scrim, Team
+from scrim_classes import Scrim, Team, CryoBotError, ErrorName
+from helper import getVariable
+
+CRYOBARK: Team = getVariable("CRYOBARK")
+WILDCARD_TEAM: Team = getVariable("WILDCARD_TEAM")
 
 class Gankster:
     def __init__(self):
         self._gankster_api = GanksterAPI()
         self._browser = Browser()
-        self.teams = {}
+        self.teams = {CRYOBARK.number: CRYOBARK, WILDCARD_TEAM.number: WILDCARD_TEAM}
+        self._scrim_history = {}
 
     def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
         """
@@ -19,6 +24,8 @@ class Gankster:
         Returns:
             list[Scrim]: The list of outgoing scrim requests, team unknown
         """
+        # from scrim_classes import ScrimFormat
+        # from datetime import datetime
         # scrims = []
         # for _ in range(int(input("Scrims: "))):
         #     number = input("Number: ")
@@ -31,19 +38,29 @@ class Gankster:
         #     scrims.append(Scrim(time=time, scrim_format=format, team=team, open=open))
         # return scrims
         scrims: list[Scrim] = []
-        # scrims = self._gankster_api.get_outgoing_scrims
+        return scrims
+        # scrims = self._gankster_api.get_outgoing_scrims()
 
-        # If Booked Scrim Fetch Team With Selenium
-        booked = False
+        # If Booked Scrim Exists Fetch Team With Selenium
+        if team != CRYOBARK or all(scrim.open for scrim in scrims):
+            return scrims
+
+        booked_scrim_teams = None
+        try:
+            booked_scrim_teams = self._browser.retrieve_booked_scrim_requests()
+        except CryoBotError as e:
+            if e.name != ErrorName.GANKSTER_UNAVAILIBLE:
+                raise
         for scrim in scrims:
             if not scrim.open:
-                booked = True
-                break
-        if booked:
-            booked_scrims = self._browser.retrieve_booked_scrim_requests()
-            for scrim in scrims:
-                if not scrim.open:
-                    team = booked_scrims[booked_scrims.index(scrim)].team
+                if booked_scrim_teams  and scrim in booked_scrim_teams:
+                    team = booked_scrim_teams[booked_scrim_teams.index(scrim)].team
+                    self._scrim_history[scrim] = team
+                elif scrim in self._scrim_history:
+                    team = self._scrim_history[scrim]
+                else:
+                    team = WILDCARD_TEAM
+
                     # Add Team To Dict To Avoid Excessive Calls
                     if team not in self.teams:
                         self.fill_team_stats(team)
@@ -51,6 +68,7 @@ class Gankster:
                     scrim.team = self.teams[team.number]
 
         return scrims
+
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
         """
         Retrieves a list of incoming scrim requests to the default user
@@ -128,11 +146,11 @@ class Gankster:
         """
         self._browser.cancel_scrim_request(scrim)
 
-    def cancel_all_scrim_requests(self) -> None:
+    def cancel_scrim_block(self, scrim: Scrim, message: str) -> None:
         """
         Cancels all outgoing scrim requests
         """
-        self._browser.cancel_scrim_request()
+        self._browser.cancel_scrim_block()
 
     def send_scrim_request(self, scrim: Scrim) -> None:
         """

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional
@@ -106,6 +106,9 @@ class Team:
     def __str__(self):
         return f"<Team: name='{self.name}', number={self.number}>"
 
+    def __bool__(self):
+        return bool(self.number or self.name)
+
 @dataclass
 class Scrim:
     time: datetime
@@ -123,6 +126,12 @@ class Scrim:
 
     def __str__(self):
         return f"<Scrim: time='{self.time.strftime('%m/%d/%y %I:%M %p')}', format='{self.scrim_format.format_short}', team={str(self.team)}, open={self.open}>"
+
+    def get_scrim_end_time(self):
+        return self.time + timedelta(hours=self.scrim_format.games)
+
+    def get_gankster_removal_time(self):
+        return self.time + timedelta(minutes=(40 * self.scrim_format.games))
 
 
     # def __repr__(self):
@@ -165,6 +174,9 @@ class ErrorName(Enum):
     MISSING_GAME_RECORD = "MissingGameRecord"
     SCOUTING_TEAM_NOT_FOUND = "ScoutingTeamNotFound"
     NO_TEAM_OUTGOING_SCRIM_REQUEST = "NoTeamOutgoingScrimRequest"
+    SCRIM_REQUEST_NOT_FOUND = "ScrimRequestNotFound"
+    GANKSTER_UNAVAILIBLE = "GanksterUnavailible"
+    NO_SCRIM_BLOCK_FOUND = "NoScrimBlockFound"
 
 ERROR_DESCRIPTIONS = {
     ErrorName.NONE: "No Issue",
@@ -203,6 +215,9 @@ ERROR_DESCRIPTIONS = {
     ErrorName.MISSING_GAME_RECORD: "Game record is missing for the given date",
     ErrorName.SCOUTING_TEAM_NOT_FOUND: "Team was not found in scouting report when attempting update",
     ErrorName.NO_TEAM_OUTGOING_SCRIM_REQUEST: "The given team did not have an outgoing scrim request so I can't send a scrim request",
+    ErrorName.SCRIM_REQUEST_NOT_FOUND: "There was no scrim request matching the provided scrim found within the notifications to accept/decline",
+    ErrorName.GANKSTER_UNAVAILIBLE: "Gankster is down at the moment, please try again later",
+    ErrorName.NO_SCRIM_BLOCK_FOUND: "Could not find the given scrim block sceduled for team Cryobark"
 }
 
 @dataclass

@@ -22,6 +22,7 @@ MANAGER_ROLE_ID: int = getVariable("MANAGER_ROLE_ID")
 POLL_PINGERS: list[int] = getVariable("POLL_PINGERS")
 ALL_MEMBERS: set[int] = getVariable("ALL_MEMBERS")
 CRYOBARK: Team = getVariable("CRYOBARK")
+WILDCARD_TEAM: Team = getVariable("WILDCARD_TEAM")
 
 class CryoBot:
     def __init__(self):
@@ -37,7 +38,9 @@ class CryoBot:
         self._scrim_messages: dict[Scrim, discord.Message] = {}
         self._played_scrims: set[Scrim] = set()
 
+        debugPrint("Starting Google API")
         self._google_api = GoogleAPI()
+        debugPrint("Starting Gankster")
         self._gankster = Gankster()
 
         self._gankster.fill_team_stats(CRYOBARK)
@@ -146,12 +149,12 @@ class CryoBot:
             # Manually tested each possible scenario and it works, might add actual comments one day who knows
             now = datetime.now()
             for scrim in self._current_scrims.copy():
-                if not scrim.open and now - scrim.time > timedelta(minutes=(40 * scrim.scrim_format.games)):
+                if not scrim.open and scrim.get_gankster_removal_time() < now:
                     self._current_scrims.pop(scrim)
                     self._played_scrims.add(scrim)
 
             for scrim in self._played_scrims.copy():
-                if now - scrim.time > timedelta(hours=scrim.scrim_format.games):
+                if scrim.get_scrim_end_time() < now:
                     self._played_scrims.pop(scrim)
                     await self._scrim_played(scrim)
 
@@ -159,7 +162,8 @@ class CryoBot:
             for new_scrim in new_scrims:
                 if new_scrim in self._current_scrims:
                     for old_scrim in self._current_scrims:
-                        break
+                        if new_scrim == old_scrim:
+                            break
                     if new_scrim.open != old_scrim.open:
                         self._current_scrims.remove(old_scrim)
                         self._current_scrims.add(new_scrim)
@@ -167,12 +171,18 @@ class CryoBot:
                             await self._scrim_request_found_cancelled(old_scrim) # GUD
                             await self._scrim_request_resent(new_scrim) # GUD
                         else:
-                            await self._scrim_request_booked(new_scrim) # GUD
+                            if new_scrim.team == WILDCARD_TEAM:
+                                await self._scrim_request_wildcard_booked(new_scrim) # GUD
+                            else:
+                                await self._scrim_request_booked(new_scrim) # GUD
                     elif new_scrim.team != old_scrim.team:
                         self._current_scrims.remove(old_scrim)
                         self._current_scrims.add(new_scrim)
-                        await self._scrim_request_found_cancelled(old_scrim)
-                        await self._scrim_request_booked(new_scrim)
+                        if old_scrim.team == WILDCARD_TEAM:
+                            await self._scrim_request_booked(new_scrim) # GUD
+                        else:
+                            await self._scrim_request_found_cancelled(old_scrim) # GUD
+                            await self._scrim_request_booked(new_scrim) # GUD
                 else:
                     updated = False
                     for old_scrim in self._current_scrims:
@@ -180,10 +190,15 @@ class CryoBot:
                             updated = True
                             break
                     if updated:
+                        if new_scrim.team == WILDCARD_TEAM and old_scrim.team:
+                            new_scrim.team = old_scrim.team
                         self._current_scrims.remove(old_scrim)
                         self._current_scrims.add(new_scrim)
-                        if new_scrim.team == old_scrim.team and new_scrim.team:
-                            await self._scrim_request_updated_booked(new_scrim, old_scrim) # GUD
+                        if (new_scrim.team == old_scrim.team or old_scrim.team == WILDCARD_TEAM) and new_scrim.team:
+                            if new_scrim.team == WILDCARD_TEAM:
+                                await self._scrim_request_wildcard_booked_updated(new_scrim, old_scrim) # GUD
+                            else:
+                                await self._scrim_request_booked_updated(new_scrim, old_scrim) # GUD
                         else:
                             # Team: None/None, TeamA/None, None/TeamB
                             # Open: True/True,   False/True,   True/False
@@ -193,14 +208,20 @@ class CryoBot:
                                 await self._scrim_request_found_cancelled(old_scrim) # GUD
                                 await self._scrim_request_resent(new_scrim) # GUD
                             else:
-                                await self._scrim_request_updated_booked(new_scrim, old_scrim) # GUD
+                                if new_scrim.team == WILDCARD_TEAM:
+                                    await self._scrim_request_wildcard_updated_booked(new_scrim, old_scrim)
+                                else:
+                                    await self._scrim_request_updated_booked(new_scrim, old_scrim) # GUD
                     else:
                         # scrim request created
                         self._current_scrims.add(new_scrim)
                         if new_scrim.open:
                             await self._scrim_request_created(new_scrim)  # GUD
                         else:
-                            await self._scrim_request_booked(new_scrim) # GUD
+                            if new_scrim.team == WILDCARD_TEAM:
+                                await self._scrim_request_wildcard_booked(new_scrim) # GUD
+                            else:
+                                await self._scrim_request_booked(new_scrim) # GUD
                         pass
 
             for scrim in self._current_scrims.copy():
@@ -318,6 +339,11 @@ class CryoBot:
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
+                return
+            if scrimTime < datetime.now():
+                debugPrint("Invalid Time Format Recieved")
+                await interaction.response.send_message("Scrims must be in the future")
+                return
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format)) 
             await interaction.response.defer()
             self._gankster.create_scrim_request(scrim)
@@ -325,29 +351,36 @@ class CryoBot:
             await interaction.followup.send("Scrim Request Sucessfully Created")
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
-        @discord.app_commands.choices(format=formats)
         @discord.app_commands.describe(date = "mm/dd/yy", time="hh:mm AM|PM")
         @_handle_interaction_error
-        async def cancel_scrim_request(interaction: discord.Interaction, date: str, time: str,  format: str):
-            debugPrint(f"Attempting to cancel scrim request: date='{date}', time='{time}', format='{format}'")
+        async def cancel_scrim_request(interaction: discord.Interaction, date: str, time: str):
+            debugPrint(f"Attempting to cancel scrim request: date='{date}', time='{time}'")
             scrimTime = datetime.strptime(f"{date} {time}", "%m/%d/%y %I:%M %p")
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
-            scrim = Scrim(scrimTime, ScrimFormat.from_short(format)) 
+                return
+            scrim = Scrim(scrimTime) 
             await interaction.response.defer()
             self._gankster.cancel_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Cancelled")
             await interaction.followup.send("Scrim Request Sucessfully Cancelled")
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
+        @discord.app_commands.describe(date = "mm/dd/yy", time="hh:mm AM|PM")
         @_handle_interaction_error
-        async def cancel_all_scrim_requests(interaction: discord.Interaction):
-            debugPrint("Attempting to cancel all scrim requests")
+        async def cancel_scrim_block(interaction: discord.Interaction, date: str, time: str,  message: str):
+            debugPrint(f"Attempting to cancel scrim block: date='{date}', time='{time}', message='{message}'")
+            scrimTime = datetime.strptime(f"{date} {time}", "%m/%d/%y %I:%M %p")
+            if scrimTime.minute != 0 and scrimTime.minute != 30:
+                debugPrint("Invalid Time Format Recieved")
+                await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
+                return
+            scrim = Scrim(scrimTime) 
             await interaction.response.defer()
-            self._gankster.cancel_all_scrim_requests()
-            debugPrint("All Scrim Requests Sucessfully Cancelled")
-            await interaction.followup.send("All Scrim Requests Sucessfully Cancelled")
+            self._gankster.cancel_scrim_request(scrim)
+            debugPrint("Scrim Block Sucessfully Cancelled")
+            await interaction.followup.send("Scrim Block Sucessfully Cancelled")
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.choices(format=formats)
@@ -359,6 +392,7 @@ class CryoBot:
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
+                return
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
@@ -376,6 +410,7 @@ class CryoBot:
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
+                return
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
@@ -393,6 +428,11 @@ class CryoBot:
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
+                return
+            if scrimTime < datetime.now():
+                debugPrint("Invalid Time Format Recieved")
+                await interaction.response.send_message("Scrims must be in the future")
+                return
             team = Team(name=team_name)
             scrim = Scrim(scrimTime, ScrimFormat.from_short(format), team) 
             await interaction.response.defer()
@@ -511,14 +551,47 @@ class CryoBot:
     @_handle_automatic_error
     async def _scrim_request_updated_booked(self, new_scrim: Scrim, old_scrim: Scrim):
         if old_scrim in self._scrim_messages:
+            self._scrim_messages[new_scrim] = self._scrim_messages.pop(old_scrim)
+
+        await self._scrim_request_booked(new_scrim)
+
+    @_handle_automatic_error
+    async def _scrim_request_wildcard_updated_booked(self, new_scrim: Scrim, old_scrim: Scrim):
+        if old_scrim in self._scrim_messages:
+            self._scrim_messages[new_scrim] = self._scrim_messages.pop(old_scrim)
+
+        await self._scrim_request_wildcard_booked(new_scrim)
+
+    @_handle_automatic_error
+    async def _scrim_request_booked_updated(self, new_scrim: Scrim, old_scrim: Scrim):
+        if old_scrim in self._scrim_messages:
             await self._scrim_messages[old_scrim].delete()
             self._scrim_messages.pop(old_scrim)
 
-        embed =DiscordStuff.create_scrim_request_updated_booked_embed(new_scrim)
+        embed =DiscordStuff.create_scrim_request_booked_updated_embed(new_scrim)
         self._scrim_messages[new_scrim] = await self._scrim_channel.send(f"<@&{CRYOBARK_ROLE_ID}>", embed=embed)
 
         await self._google_api.cancel_scrim(old_scrim)
         await self._google_api.found_scrim(new_scrim)
+
+    @_handle_automatic_error
+    async def _scrim_request_wildcard_booked(self, scrim: Scrim):
+        # Found wildcard
+        if scrim in self._scrim_messages:
+            await self._scrim_messages[scrim].delete()
+
+        embed =DiscordStuff.create_scrim_request_wildcard_booked_embed(scrim)
+        self._scrim_messages[scrim] = await self._scrim_channel.send(f"<@&{CRYOBARK_ROLE_ID}>", embed=embed)
+
+    @_handle_automatic_error
+    async def _scrim_request_wildcard_booked_updated(self, new_scrim: Scrim, old_scrim: Scrim):
+        # Changed format of one wildcard scrim to another format
+        if old_scrim in self._scrim_messages:
+            await self._scrim_messages[old_scrim].delete()
+            self._scrim_messages.pop(old_scrim)
+
+        embed =DiscordStuff.create_scrim_request_wildcard_booked_updated_embed(new_scrim)
+        self._scrim_messages[new_scrim] = await self._scrim_channel.send(f"<@&{CRYOBARK_ROLE_ID}>", embed=embed)
 
     @_handle_automatic_error
     async def _scrim_played(self, scrim: Scrim):
@@ -533,5 +606,4 @@ class CryoBot:
 
 
 if __name__ == "__main__":
-
     bot = CryoBot()

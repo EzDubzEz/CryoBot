@@ -128,7 +128,8 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If issue occurs"""
+            CryoBotError: If issue occurs
+        """
 
         payload = {
             "function": "cancelScrim",
@@ -148,7 +149,8 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If issue occurs"""
+            CryoBotError: If issue occurs
+        """
 
         payload = {
             "function": "updateScrimResults",
@@ -167,10 +169,31 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If issue occurs"""
+            CryoBotError: If issue occurs
+        """
 
         payload = {
             "function": "resetScrimResultsData",
+            "devMode": True
+        }
+        await self._make_call(payload)
+
+    async def reset_scouting_scrim_results(self) -> None:
+        """
+        Reloads all of the scrim results in the scouting reports
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
+
+        payload = {
+            "function": "resetScoutingScrimResults",
             "devMode": True
         }
         await self._make_call(payload)

@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import WebDriverException 
+from selenium.common.exceptions import WebDriverException , TimeoutException
 import re
 from datetime import datetime, timedelta
 
@@ -35,14 +35,22 @@ class Browser:
             self._driver.quit()
 
     def _handle_driver(func):
+        """ Decorator To Handle Selenium Errors And Rass/Passthrough CryoBotErrors """
         def wrapper(self: "Browser", *args, **kwargs):
             try:
                 # Open To Cryobark Page And Wait For It To Load
                 self._driver = webdriver.Chrome(options=self._options)
                 self._driver.get(TEAM_LINK)
-                WebDriverWait(self._driver, 10).until(expected_conditions.presence_of_element_located((By.XPATH, "//div[contains(@class, 'TeamPanel') and text()='Cryobark']")))
 
-                return func(self, *args, **kwargs) 
+                # Wait For Cryobark Page To Load
+                WebDriverWait(self._driver, 30).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
+                # If Given 503 Service Unavailible Page
+                if len(self._driver.find_elements(By.XPATH, "//div[contains(@class, 'UserInfoErrorPagestyled__SWrapper')]")):
+                    raise CryoBotError(ErrorName.GANKSTER_UNAVAILIBLE, "oh no")
+
+                return func(self, *args, **kwargs)
+            except CryoBotError:
+                raise
             except WebDriverException as e:
                 lines = ""
                 for line in traceback.format_tb(e.__traceback__ ):
@@ -87,9 +95,29 @@ class Browser:
             accept (bool): Whether or not to accept the request
 
         Returns:
-            bool: Whether or not the given scrim was found
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
-        return
+        # Click Notification Button -> Wait For Notification Page To Appear
+        self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-bell')]]").click()
+        WebDriverWait(self._driver, 3).until(expected_conditions.presence_of_element_located((By.XPATH, "//span[text()=\"That's it...\"]")))
+
+        # Find Sent Scrim Request Notifications And Loop
+        notificationXPath = "//div[./div[contains(@class, 'NotificationMarker')] and .//div[contains(text(), 'sent a scrim request')]]"
+        notificationXPath = f"//div[./div[contains(@class, 'NotificationMarker')] and .//div[contains(text(), 'sent a scrim request')] and .//a[text()='{scrim.team.name}'] and .//span[text()='{scrim.time.strftime('%b %#d, %I:%M')}{scrim.time.strftime('%p').lower()} ({scrim.scrim_format.format_short})']]"
+        notifications = self._driver.find_elements(By.XPATH, notificationXPath)
+        if not len(notifications):
+            raise CryoBotError(ErrorName.SCRIM_REQUEST_NOT_FOUND, f"scrim={scrim}, accept={accept}")
+        if accept:
+            self._driver.find_element(By.XPATH, f"{notificationXPath}//button[text()='Open']").click()
+            WebDriverWait(self._driver, 3).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-modal-dialog']")))
+            self._driver.find_element(By.XPATH, "//div[@class='rs-modal-dialog']//button[text()='Confirm']").click()
+            WebDriverWait(self._driver, 3).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//div[@class='rs-modal-dialog']")))
+        else:
+            self._driver.find_element(By.XPATH, f"{notificationXPath}//button[text()='Decline']").click()
+            WebDriverWait(self._driver, 3).until(expected_conditions.invisibility_of_element(notifications[0]))
 
     @_handle_driver
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
@@ -98,6 +126,9 @@ class Browser:
 
         Returns:
             list[Scrim]: List of currently open scrim requests
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         scrims = []
 
@@ -129,6 +160,9 @@ class Browser:
 
         Returns:
             list[Scrim]: List of currently booked scrim requests
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         scrims = []
 
@@ -160,27 +194,34 @@ class Browser:
 
         Args:
             scrim (Scrim): The scrim request to create
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
-        # Click Search Button -> Wait For Search Page To Appear
+        # Click Search Button -> Wait For Scrim Page To Appear
         self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-flag')]]").click()
-        WebDriverWait(self._driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'LfsListHeader')]")))
-        # scroll to either date //div[contains(text(), ', 20 Sep')] or end //div[text()="That's it for now..."]
-        # (//div[contains(@class, 'LFSList__DayBox')])[last()]
-        start = datetime.now()
-        while datetime.now() - start < timedelta(seconds=60):
-            element = self._driver.find_element(By.XPATH, "(//div[contains(@class, 'LFSList__DayBox')])[last()]")
-            latestTime = datetime.strptime(element.text[-6:], '%d %b')
-            if latestTime > scrim.time:
-                break
-            self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
-            WebDriverWait(self._driver, 1).until(expected_conditions.visibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
-            WebDriverWait(self._driver, 10).until(expected_conditions.invisibility_of_element_located((By.XPATH, "//span[@class='rs-loader-spin']")))
-            if len(self._driver.find_elements(By.XPATH, f"//div[contains(text(), ', {scrim.time.strftime('%d %b')}')]|//div[text()=\"That's it for now...\"]")):
-                break
-        # element = WebDriverWait(self._driver, 30).until(expected_conditions.visibility_of_element_located((By.XPATH, f"//div[contains(text(), ', {scrim.time.strftime('%d %b')}')]|//div[text()=\"That's it for now...\"]")))
-        # self._driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        print()
-        pass
+        WebDriverWait(self._driver, 10).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'QuickLFS__Container')]")))
+
+        # Set Date
+        self._driver.find_element(By.XPATH, "//div[./div[text()='DAY']]//button").click()
+        self._select_date(scrim.time)
+
+        # Set Time
+        self._driver.find_element(By.XPATH, "//div[./div[text()='TIME']]//a").click()
+        self._driver.find_element(By.XPATH, f"//li[text()='{scrim.time.strftime('%#I:%M %p')}']").click()
+
+        # Fill In Format
+        self._driver.find_element(By.XPATH, "//div[./div[text()='FORMAT']]//a").click()
+        self._driver.find_element(By.XPATH, f"//a[text()='{scrim.scrim_format.format_short}']").click()
+
+        # Create Request
+        self._driver.find_element(By.XPATH, "//button[text()='Post  LFS']").click()
+
+        # Wait For Successfull Creation
+        WebDriverWait(self._driver, 2).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-notification-title-with-icon' and text()='LFS Created!']")))
 
     @_handle_driver
     def cancel_scrim_request(self, scrim: Scrim) -> None:
@@ -189,18 +230,64 @@ class Browser:
 
         Args:
             scrim (Scrim): The scrim request to cancel
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
-        return
+        # Look For Button To Cancel Specific Scrim Request
+        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Change LFS']")
+        if not cancel_button:
+            return CryoBotError(ErrorName.NO_SCRIM_BLOCK_FOUND, f"scrim={scrim}" )
+
+        self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", cancel_button[0])
+        sleep(1)
+        cancel_button[0].click()
+
+        # Click Delete On Popup
+        self._driver.find_element(By.XPATH, "//div[@class='rs-modal-content']//button[text()='Delete LFS']").click()
+
+        # Wait For Successfull Cancellation
+        WebDriverWait(self._driver, 2).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-notification-title-with-icon' and text()='LFS Deleted']")))
 
     @_handle_driver
-    def cancel_all_scrim_requests(self, scrim: Scrim) -> None:
+    def cancel_scrim_block(self, scrim: Scrim, message: str) -> None:
         """
-        Cancels a scrim request
+        Cancels a scrim block
 
         Args:
-            scrim (Scrim): The scrim request to cancel
+            scrim (Scrim): The confirmed scrim block to cancel
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
-        return
+        # Look For Button To Cancel Specific Scrim
+        a = f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Confirmed']"
+        cancel_button = self._driver.find_elements(By.XPATH, f"//div[contains(@class,'LFSList__DayBox') and text()='{scrim.time.strftime('%a, %d %b')}']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='{scrim.time.strftime('%a, %d %b')}']][.//div[text()='{scrim.time.strftime('%H:%M %p').lower()}']]//button[text()='Confirmed']")
+        if not cancel_button:
+            raise CryoBotError(ErrorName.NO_SCRIM_BLOCK_FOUND, f"scrim={scrim}" )
+
+
+        self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", cancel_button[0])
+        sleep(1)
+        cancel_button[0].click()
+#"//div[contains(@class,'LFSList__DayBox') and text()='Tue, 07 Oct']/following-sibling::div[contains(@class,'PublicLFSItem') and preceding-sibling::div[contains(@class,'LFSList__DayBox')][1][text()='Tue, 07 Oct']][.//div[text()='10']]//button[text()='Confirmed']"
+        # Click Cancel On Popup
+        self._driver.find_element(By.XPATH, "//div[@class='rs-modal-content']//button[text()='Cancel Scrim']").click()
+
+        # Enter Cancellation Reason
+        self._driver.find_element(By.XPATH, "//div[@class='rs-modal-content']//textarea[@placeholder='Add cancellation reason to continue...']").send_keys(message)
+
+        # Confirm Cancel
+        self._driver.find_element(By.XPATH, "//div[@class='rs-modal-content']//button[text()='Cancel Scrim']").click()
+
+        # Wait For Successfull Cancellation
+        WebDriverWait(self._driver, 2).until(expected_conditions.visibility_of_element_located((By.XPATH, "//div[@class='rs-notification-title-with-icon' and text()='ScrimCanceled']")))
 
     @_handle_driver
     def send_scrim_request(self, scrim: Scrim) -> None:
@@ -209,6 +296,12 @@ class Browser:
 
         Args:
             scrim (Scrim): The scrim request to send
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         # Click Search Button -> Wait For Scrim Page To Appear
         self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-flag')]]").click()
@@ -230,11 +323,11 @@ class Browser:
         if not len(opens):
             raise CryoBotError(ErrorName.NO_TEAM_OUTGOING_SCRIM_REQUEST, fields=f"scrim={scrim}")
 
-        # Scroll Button Into View And Wait
+        # Scroll "Open" Button Into View And Wait
         self._driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", opens[0])
         sleep(1)
 
-        # Click Open Button (To Create Scrim Request)
+        # Click "Open" Button (To Create Scrim Request)
         self._driver.find_element(By.XPATH, f"//div[.//div[text()='{scrim.team.name}'] and contains(@class, 'PublicLFSItem')]//button").click()
 
         # Wait For Send Scrim Modal
@@ -242,24 +335,11 @@ class Browser:
 
         # Set Time
         self._driver.find_element(By.XPATH, "//div[contains(@class, 'ScrimEventModal__TimeFlex')]//a").click()
-        self._driver.find_element(By.XPATH, f"//li[text()='{scrim.time.strftime('%I:%M %p')}']").click()
+        self._driver.find_element(By.XPATH, f"//li[text()='{scrim.time.strftime('%#I:%M %p')}']").click()
 
-        # Select Date
+        # Set Date
         self._driver.find_element(By.XPATH, "//div[contains(@class, 'ScrimEventModal__TimeFlex')]//div[contains(@class, 'DatePicker')]").click()
-        
-        start = datetime.now()
-        # Navigate Calendar To Correct Month/Year
-        while datetime.now() - start < timedelta(seconds=10):
-            selected_date = datetime.strptime(self._driver.find_element(By.XPATH, "//div[@class='rs-calendar']//span[contains(@class, 'rs-calendar-header')]").text, "%b %d, %Y")
-            if (selected_date.year, selected_date.month) < (scrim.time.year, scrim.time.month):
-                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-forward']").click()
-            elif (selected_date.year, selected_date.month) > (scrim.time.year, scrim.time.month):
-                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-backward']").click()
-            else:
-                break
-
-        # Select Date From Calendar
-        self._driver.find_element(By.XPATH, f"//div[@title='{scrim.time.strftime('%b %d, %Y')}']//span").click()
+        self._select_date(scrim.time)
 
         # Fill In Format
         self._driver.find_element(By.XPATH, "//div[@class='rs-modal-dialog']//div[contains(@class, 'rs-picker-select')]").click()
@@ -279,6 +359,9 @@ class Browser:
 
         Returns:
             str: the team number for the given team
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         # Click Search Button -> Wait For Search Page To Appear
         self._driver.find_element(By.XPATH, "//span[.//*[contains(@*, '#icon-search')]]").click()
@@ -299,12 +382,31 @@ class Browser:
             print("Here")
         return ""
 
+    def _select_date(self, date: datetime):
+        start = datetime.now()
+        # Navigate Calendar To Correct Month/Year
+        while datetime.now() - start < timedelta(seconds=10):
+            selected_date = datetime.strptime(self._driver.find_element(By.XPATH, "//div[@class='rs-calendar']//span[contains(@class, 'rs-calendar-header')]").text, "%b %d, %Y")
+            if (selected_date.year, selected_date.month) < (date.year, date.month):
+                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-forward']").click()
+            elif (selected_date.year, selected_date.month) > (date.year, date.month):
+                self._driver.find_element(By.XPATH, "//i[@class='rs-calendar-header-backward']").click()
+            else:
+                break
+
+        # Select Date From Calendar
+        self._driver.find_element(By.XPATH, f"//div[@title='{date.strftime('%b %d, %Y')}']//span").click()
+
 if __name__ == "__main__":
     browser = Browser()
     # for _ in range(100):
     #     if browser.retrieve_team_number('TD Tidal') != "85190":
     #         print("Missed")
-    # browser.send_scrim_request(Scrim(datetime.strptime('09/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.send_scrim_request(Scrim(datetime.strptime('12/09/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.create_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.cancel_scrim_block(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), "Cancellation")
+    browser.cancel_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.process_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), True) #TODO Test
     # browser.create_scrim_request(Scrim(datetime.strptime('09/07/25 10:00',
     #               '%m/%d/%y %H:%M'), ScrimFormat.BEST_OF_THREE))
     # print(f"Team Link: {browser.retrieve_team_number('TD Tidal')}")

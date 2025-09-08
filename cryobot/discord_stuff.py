@@ -18,9 +18,7 @@ class DiscordStuff:
             accept (str): The starting date for the duration (Sunday)
 
         Returns:
-            url (str): the session url to post
-            headers (dict): the headers to post
-            payload (dict): the payload to post
+            poll (Poll): The poll that should be posted
         """
         poll = discord.Poll(question=f"Scrim Availability {start} - {end}", duration=timedelta(hours=40))
         poll.add_answer(text="Monday")
@@ -28,14 +26,16 @@ class DiscordStuff:
         poll.add_answer(text="Wednesday")
         poll.add_answer(text="Thursday")
         poll.add_answer(text="Friday")
-        poll.add_answer(text="Saturday")
-        poll.add_answer(text="Sunday")
+        poll.add_answer(text="Midday Saturday")
+        poll.add_answer(text="Night Saturday")
+        poll.add_answer(text="Midday Sunday")
+        poll.add_answer(text="Night Sunday")
         poll.multiple = True
 
         return poll
 
     def _embed(func):
-        """Decorator to add a standard footer to discord embeds"""
+        """ Decorator to add a footer to discord embeds """
         def wrapper(*args, **kwargs):
             embed: discord.Embed = func(*args, **kwargs)
             if random()  < ZINSKI_ODDS:
@@ -52,7 +52,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that is being sought out
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title="Scrim Request Sent",
@@ -79,7 +79,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim request that was sent out
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Request Recieved From {scrim.team.name}",
@@ -116,7 +116,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was found and confirmed
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Found vs {scrim.team.name}",
@@ -155,7 +155,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was found and confirmed
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Played vs {scrim.team.name}",
@@ -194,7 +194,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was cancelled
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Cancelled vs {scrim.team.name}",
@@ -220,7 +220,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was cancelled
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Request Withdrawn",
@@ -246,7 +246,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was cancelled/resent
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Request Resent",
@@ -273,7 +273,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was updated
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Request Updated",
@@ -292,7 +292,7 @@ class DiscordStuff:
         return embed
 
     @_embed
-    def create_scrim_request_updated_booked_embed(scrim: Scrim) -> discord.Embed:
+    def create_scrim_request_booked_updated_embed(scrim: Scrim) -> discord.Embed:
         """
         Creates the embed to post when a confirmed scrim request is updated
 
@@ -300,7 +300,7 @@ class DiscordStuff:
             scrim (Scrim): The scrim that was updated
 
         Returns:
-            embed (Embed): the discord embed that should be posted
+            embed (Embed): The discord embed that should be posted
         """
         embed = discord.Embed(
             title=f"Scrim Updated vs {scrim.team.name}",
@@ -325,6 +325,62 @@ class DiscordStuff:
 
         if scrim.team.opggLink:
             embed.set_author(name="OP.GG", url=scrim.team.opggLink, icon_url="https://play-lh.googleusercontent.com/FeRWKSHpYNEW21xZCQ-Y4AkKAaKVqLIy__PxmiE_kGN1uRh7eiB87ZFlp3j1DRp9r8k")
+
+        embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/On_My_Way_ping.png") #I updated this on the wiki so I could use the correct looking one :D
+
+        return embed
+
+    @_embed
+    def create_scrim_request_wildcard_booked_embed(scrim: Scrim) -> discord.Embed:
+        """
+        Creates the embed to post when a scrim is confirmed but team is unknown
+
+        Args:
+            scrim (Scrim): The scrim that was found and confirmed
+
+        Returns:
+            embed (Embed): The discord embed that should be posted
+        """
+        embed = discord.Embed(
+            title=f"Scrim Found",
+            description="Get ready to rumble! Couldn't determine the enemy team.",
+            color=discord.Color.blue(),
+            url=f"https://lol.gankster.gg/teams/{scrim.team.number}"
+        )
+
+        dateString = scrim.time.strftime(f"%A, %b {ordinal(scrim.time.day)}")
+        timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
+        embed.add_field(name="Date", value=dateString, inline=True)
+        embed.add_field(name="Time", value=timeString, inline=True)
+        embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
+
+        embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/On_My_Way_ping.png") #I updated this on the wiki so I could use the correct looking one :D
+
+        return embed
+
+    @_embed
+    def create_scrim_request_wildcard_booked_updated_embed(scrim: Scrim) -> discord.Embed:
+        """
+        Creates the embed to post when a confirmed scrim request with unkown team is updated 
+
+        Args:
+            scrim (Scrim): The scrim that was updated
+
+        Returns:
+            embed (Embed): The discord embed that should be posted
+        """
+        embed = discord.Embed(
+            title=f"Scrim Updated",
+            description="Check out these new and improved details and get ready to rumble!! Couldn't determine the enemy team.",
+            color=discord.Color.blue(),
+            url=f"https://lol.gankster.gg/teams/{scrim.team.number}"
+        )
+
+        dateString = scrim.time.strftime(f"%A, %b {ordinal(scrim.time.day)}")
+        timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
+        embed.add_field(name="Date", value=dateString, inline=True)
+        embed.add_field(name="Time", value=timeString, inline=True)
+        embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
 
         embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/On_My_Way_ping.png") #I updated this on the wiki so I could use the correct looking one :D
 

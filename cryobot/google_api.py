@@ -96,6 +96,22 @@ class GoogleAPI:
                 raise CryoBotError(ErrorName(messages[0]), messages[1])
             raise CryoBotError(ErrorName.UNKNOWN, "", description=": ".join(messages))
 
+    async def refresh_token(self) -> None:
+        """
+        Calls a useless function that refreshes auth
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs"""
+
+        payload = {
+            "function": "refreshToken",
+            "devMode": True
+        }
+        await self._make_call(payload)
+
     async def found_scrim(self, scrim: Scrim) -> None:
         """
         Adds/Fills the team to the scouting doc, then adds a page to the Scrim Results sheet

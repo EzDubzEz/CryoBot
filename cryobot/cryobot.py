@@ -138,7 +138,7 @@ class CryoBot:
                 return
             debugPrint("Refreshing Google API Token")
             try:
-                await self._google_api.refresh_creds()
+                await self._google_api.refresh_token()
                 debugPrint("Google API Token Refreshed Successfully")
             except Exception as e:
                 debugPrint(f"Issue in Google API loop: {e}")

@@ -16,7 +16,6 @@ from time import sleep
 
 
 TEAM_LINK: str = getVariable("TEAM_LINK")
-TEAM_LINK = "https://lol.gankster.gg/teams/107750/testingt"
 
 class Browser:
     def __init__(self):

@@ -434,6 +434,15 @@ class CryoBot:
             debugPrint("Sucessfully Reset Scrim Results Data")
             await interaction.followup.send("Sucessfully Reset Scrim Results Data")
 
+        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
+        @_handle_interaction_error
+        async def reset_scouting_scrim_results(interaction: discord.Interaction):
+            debugPrint(f"Attempting to reset scouting scrim results")
+            await interaction.response.defer()  
+            await self._google_api.reset_scouting_scrim_results()
+            debugPrint("Sucessfully Reset Scouting Scrim Results")
+            await interaction.followup.send("Sucessfully Reset Scouting Scrim Results")
+
     def _handle_automatic_error(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):

@@ -45,18 +45,12 @@ class CryoBot:
         debugPrint("Starting Gankster")
         self._gankster = Gankster()
 
-        # intents = discord.Intents.all()
         intents = discord.Intents.none()
         intents.guilds = True
         intents.messages = True
         intents.polls = True
         intents.members = True
         self.flag = True
-
-        # intents2 = discord.Intents.none()
-        # intents2.guilds = True
-        # intents2.messages = True
-        # intents2.polls = True
 
         self._bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents,)
 
@@ -106,8 +100,8 @@ class CryoBot:
                 try:
                     debugPrint("Attempting To Post Weekly Poll")
                     self._poll_voters = set()
-                    start = (now + timedelta(days=2)).strftime("%d/%m")
-                    end = (now + timedelta(days=8)).strftime("%d/%m")
+                    start = (now + timedelta(days=3)).strftime("%m/%d")
+                    end = (now + timedelta(days=9)).strftime("%m/%d")
                     poll = DiscordStuff.create_weekly_poll(start, end)
                     self._latest_poll_message = await self._poll_channel.send(poll=poll)
                     debugPrint("Sucessfully Posted Weekly Poll")
@@ -277,7 +271,6 @@ class CryoBot:
                     self._current_scrims.remove(scrim)
                     await self._scrim_request_created_cancelled(scrim) # GUD
 
-        # @tasks.loop(time=[time(hour=hour, minute=minute) for hour in range(24) for minute in range(2, 60, 1)])
         @tasks.loop(minutes=1)
         async def update_scrim_status():
             debugPrint("Starting Update Scrim Status")

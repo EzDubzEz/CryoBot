@@ -135,7 +135,7 @@ class GanksterAPI:
         for scrim in response["lfsEvents"]:
             if scrim["status"] == "OPEN":
                 scrims.append(Scrim(Scrim.timestamp_to_datetime(scrim["startTime"]), ScrimFormat.from_gankster_format(scrim["format"]["bestOf"]), gankster_id=scrim["id"]))
-            if scrim["status"] == "BOOKED" and (team != CRYOBARK):
+            if scrim["status"] == "BOOKED":
                 scrims.append(Scrim(Scrim.timestamp_to_datetime(scrim["startTime"]), ScrimFormat.from_gankster_format(scrim["format"]["bestOf"]), open=False, gankster_id=scrim["id"]))
 
         return scrims
@@ -179,12 +179,20 @@ class GanksterAPI:
         Raises:
             CryoBotError: If issue occurs
         """
-        scrims = self._retrieve_outgoing_public_scrims(team)
+        public_scrims = self._retrieve_outgoing_public_scrims(team)
 
         if team != CRYOBARK:
-            return scrims
+            return public_scrims
 
-        return scrims + self.retrieve_booked_scrims()
+        booked_scrims = self.retrieve_booked_scrims()
+
+        for public_scrim in public_scrims:
+            if not public_scrim.open:
+                if public_scrim in booked_scrims:
+                    public_scrim.team = booked_scrims[booked_scrims.index(public_scrim)].team
+                    booked_scrims.remove(public_scrim)
+
+        return public_scrims
 
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
         """
@@ -378,7 +386,7 @@ class GanksterAPI:
 
         found = False
         for i in range(len(scrims)):
-            if scrims[i].time == scrim.time:
+            if scrims[i].time == scrim.time and scrims[i].open:
                 found = True
                 break
         if not found:

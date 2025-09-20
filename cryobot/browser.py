@@ -69,7 +69,8 @@ class Browser:
                 debugPrint(f"{type(e).__name__}: {e}")
             finally:
                 # Quit Web Driver
-                self._driver.quit()
+                if isinstance(self._driver, webdriver.Chrome):
+                    self._driver.quit()
                 self._driver = None
         return wrapper
 
@@ -152,7 +153,7 @@ class Browser:
         for i in range(1, len(notifications) + 1):
             # Link (href="https://lol.gankster.gg/teams/teamNumber/teamname")  Text: teamName
             team_link = self._driver.find_element(By.XPATH, f"({notificationXPath}//div[contains(text(), 'sent a scrim request')]/a)[%d]" % i)
-            team = Team(number=team_link.get_attribute("href").split("/")[4], name=team_link.accessible_name)
+            team = Team(number=int(team_link.get_attribute("href").split("/")[4]), name=team_link.accessible_name)
 
             # Datetime and Format  Jan 1, 12:00am (ScrimFormat.format_short)
             date_time_format = self._driver.find_element(By.XPATH, f"({notificationXPath}//div[contains(@class, 'ScrimRequestActivityItem')]/span)[%d]" % i).text
@@ -186,7 +187,7 @@ class Browser:
         for i in range(1, len(notifications) + 1):
             # Link (href="https://lol.gankster.gg/teams/teamNumber/teamname")  Text: teamName
             team_link = self._driver.find_element(By.XPATH, f"({notificationXPath}//a)[%d]" % i)
-            team = Team(number=team_link.get_attribute("href").split("/")[4], name=team_link.accessible_name)
+            team = Team(number=int(team_link.get_attribute("href").split("/")[4]), name=team_link.accessible_name)
 
             # Datetime and Format  Jan 1, 12:00am (ScrimFormat.format_short)
             date_time_format = self._driver.find_element(By.XPATH, f"({notificationXPath}//span)[%d]" % i).text
@@ -425,13 +426,39 @@ class Browser:
         # Select Date From Calendar
         self._driver.find_element(By.XPATH, f"//div[@title='{date.strftime('%b %d, %Y')}']//span").click()
 
+    @_handle_driver
+    def get_browser_auth(self):
+        cookies = self._driver.get_cookies()
+        cookie_dict = {c['name']: c['value'] for c in cookies}
+
+        # 3. Extract localStorage tokens (where Firebase usually stores them)
+        bearer = self._driver.execute_script("return window.localStorage.getItem('gankster:authUser');")
+        import json
+        if bearer:
+            try:
+                auth_json = json.loads(bearer)
+                id_token = auth_json["stsTokenManager"]["accessToken"]   # The Bearer token
+                refresh_token = auth_json["stsTokenManager"]["refreshToken"]
+                print("Bearer token:", id_token[:40], "...")
+                print("Refresh token:", refresh_token[:40], "...")
+            except Exception as e:
+                print("Could not parse authUser JSON:", e)
+        else:
+            print("No authUser found in localStorage. Inspect manually.")
+        # print(cookies)
+        # print(cookie_dict)
+        for key in cookie_dict:
+            print(f"{key}={cookie_dict[key]}", end='; ')
+        print()
+
 if __name__ == "__main__":
     browser = Browser()
+    # browser.get_browser_auth()
     # for _ in range(100):
     #     if browser.retrieve_team_number('TD Tidal') != "85190":
     #         print("Missed")
     # browser.send_scrim_request(Scrim(datetime.strptime('12/09/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
-    browser.cancel_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
+    # browser.create_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
     # browser.cancel_scrim_block(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), "Cancellation")
     # browser.cancel_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
     # browser.process_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), True) #TODO Test

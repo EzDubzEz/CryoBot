@@ -7,7 +7,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from helper import getVariable
+from helper import getVariable, debugPrint
 from scrim_classes import CryoBotError, ErrorName, Scrim
 
 CHROME_PATH: str = getVariable("CHROME_PATH")
@@ -19,6 +19,11 @@ GOOGLE_URL: str = getVariable("GOOGLE_URL")
 class GoogleAPI:
     def __init__(self):
         self._creds = self._get_creds()
+        self._session: ClientSession = None
+
+    def __del__(self):
+        if self._session:
+            self._session.close()
 
     def _get_creds(self) -> Credentials:
         creds = None
@@ -27,7 +32,8 @@ class GoogleAPI:
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                try: creds.refresh(Request())
+                except: return None
             else:
                 return None
             with open('google_auth_token.json', 'w') as token_file:
@@ -85,13 +91,17 @@ class GoogleAPI:
         return self._creds != None
 
     async def _make_call(self, payload):
+        debugPrint(f"Making Google Call: payload={payload}")
         if not self.is_auth_setup():
             raise CryoBotError(ErrorName.AUTH_NOT_SETUP, fields="D:")
-        async with ClientSession() as session:
-            async with session.post(GOOGLE_URL, headers=self._headers, json=payload) as resp:
-                response = await resp.json()
+        if not self._session:
+            self._session = ClientSession()
+
+        async with self._session.post(GOOGLE_URL, headers=self._headers, json=payload) as resp:
+            response = await resp.json()
 
         if "error" in response:
+            debugPrint("Error Making Google Call")
             messages = response["error"]["details"][0]["errorMessage"].removeprefix("Error: ").split(": ")
             if messages[0] in (e.value for e in ErrorName):
                 raise CryoBotError(ErrorName(messages[0]), messages[1])
@@ -105,7 +115,8 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If issue occurs"""
+            CryoBotError: If issue occurs
+        """
 
         payload = {
             "function": "refreshToken",
@@ -125,7 +136,8 @@ class GoogleAPI:
             None
 
         Raises:
-            CryoBotError: If issue occurs"""
+            CryoBotError: If issue occurs
+        """
 
         payload = {
             "function": "foundScrim",

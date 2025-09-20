@@ -1,34 +1,44 @@
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional
 
 class ScrimFormat(Enum):
-    BEST_OF_ONE = ("Bo1", "Best of One", 1 )
-    BEST_OF_TWO = ("Bo2", "Best of Two", 2)
-    BEST_OF_THREE = ("Bo3", "Best of Three", 3)
-    BEST_OF_FOUR = ("Bo4", "Best of Four", 4)
-    BEST_OF_FIVE = ("Bo5", "Best of Five", 5)
-    ONE_GAME = ("1 Game", "One Game", 1)
-    TWO_GAMES = ("2 Games", "Two Games", 2)
-    THREE_GAMES = ("3 Games", "Three Games", 3)
-    FOUR_GAMES = ("4 Games", "Four Games", 4)
-    FIVE_GAMES = ("5 Games", "Five Games", 5)
-    NONE = ("None", "None", 0)
+    BEST_OF_ONE = ("Bo1", "Best of One", "BO1", 1)
+    BEST_OF_TWO = ("Bo2", "Best of Two", "BO2", 2)
+    BEST_OF_THREE = ("Bo3", "Best of Three", "BO3", 3)
+    BEST_OF_FOUR = ("Bo4", "Best of Four", "BO4", 4)
+    BEST_OF_FIVE = ("Bo5", "Best of Five", "BO5", 5)
+    ONE_GAME = ("1 Game", "One Game", "G1", 1)
+    TWO_GAMES = ("2 Games", "Two Games", "G2", 2)
+    THREE_GAMES = ("3 Games", "Three Games", "G3", 3)
+    FOUR_GAMES = ("4 Games", "Four Games", "G4", 4)
+    FIVE_GAMES = ("5 Games", "Five Games", "G5", 5)
+    NONE = ("None", "None", "None", 0)
 
-    def __init__(self, format_short: str, format_long: str, games: int):
+    def __init__(self, format_short: str, format_long: str, gankster_format, games: int):
         self.format_short = format_short
         self.format_long = format_long
         self.games = games
+        self.gankster_format = gankster_format
 
-    def from_short(short: str): 
+    @staticmethod
+    def from_short(format_short: str):
         for sf in ScrimFormat:
-            if sf.format_short == short:
+            if sf.format_short == format_short:
                 return sf
 
-    def from_long(long: str): 
+    @staticmethod
+    def from_long(format_long: str):
         for sf in ScrimFormat:
-            if sf.format_long == long:
+            if sf.format_long == format_long:
+                return sf
+
+    @staticmethod
+    def from_gankster_format(gankster_format: str):
+        for sf in ScrimFormat:
+            if sf.gankster_format == gankster_format:
                 return sf
 
 class Tier(Enum):
@@ -60,40 +70,122 @@ class Rank:
     positions: list[Position]
 
 @dataclass
+class Champion:
+    """Class representing a player on a Gankster team"""
+    name: str
+    level: int = 0
+    points: int = 0
+    image_url: str = ""
+
+@dataclass
 class Player:
     """Class representing a player on a Gankster team"""
     name: str
     rank: str
     tag: str = ""
     puuid: str = ""
-    champions: list[str] = ()
+    server: str = "" # NA, EUW, etc
+    champions: list[Champion] = ()
+    is_sub: bool = False
+    last_updated: datetime = None
+
+    def copy(self, other):
+        if isinstance(other, Player):
+            self.name = other.name
+            self.rank = other.rank
+            self.tag = other.tag
+            self.puuid = other.puuid
+            self.server = other.server
+            self.champions = other.champions
+            self.last_updated = other.last_updated
+
+
+@dataclass
+class ResponseTime:
+    time: int = 0
+
+    def formatted_time(self):
+        if self.time < 30:
+            return "Seconds"
+        if self.time < 75:
+            return "A Minute"
+        if self.time < 300:
+            return "A Few Minutes"
+        if self.time < 2700:
+            return "Many Minutes"
+        if self.time < 5040:
+            return "An Hours"
+        if self.time < 8280:
+            return "Two Hours"
+        if self.time < 16000:
+            return "A Few Hours"
+        if self.time < 60000:
+            return "Many Hours"
+        if self.time < 112320:
+            return "A Day"
+        if self.time < 190080:
+            return "Two Days"
+        return "Too Many Days"
 
 @dataclass
 class Reputation:
-    gankRep: str = ""
-    likes: str = ""
-    dislikes: str = ""
-    responseTime: str = ""
-    responseRate: str = ""
-    cancellationRate: str = ""
-    communication: str = ""
-    behavior: str = ""
-    onTime: str = ""
+    gank_rep: float = 0
+    likes: int = 0
+    dislikes: int = 0
+    response_time: ResponseTime = None
+    response_rate: float = 0
+    cancellation_rate: float = 0
+    communication: float = 0
+    behavior: float = 0
+    on_time: float = 0
     reviews: list[str] = ()
+
+class GanksterRank(Enum):
+    UNRANKED = ("Unranked", 0)
+    IRON = ("Iron", 10)
+    IRON_BRONZE = ("Iron/Bronze", 15)
+    BRONZE = ("Bronze", 20)
+    BRONZE_SILVER = ("Bronze/Silver", 25)
+    SILVER = ("Silver", 30)
+    SILVER_GOLD = ("Silver/Gold", 35)
+    GOLD = ("Gold", 40)
+    GOLD_PLATINUM = ("Gold/Platinum", 45)
+    PLATINUM = ("Platinum", 50)
+    PLATINUM_EMERALD = ("Platinum/Emerald", 55)
+    EMERALD = ("Emerald", 60)
+    EMERALD_DIAMOND = ("Emerald/Diamond", 65)
+    DIAMOND = ("Diamond", 70)
+    DIAMOND_MASTER = ("Diamond/Master", 75)
+    MASTER = ("Master", 80)
+    MASTER_GRANDMASTER = ("Master/Grandmaster", 85)
+    GRANDMASTER = ("Grandmaster", 90)
+    GRANDMASTER_CHALLENGER = ("Grandmaster/Challenger", 95)
+    CHALLENGER = ("Challenger", 100)
+
+    def __init__(self, rank: str, gankster_rank: int):
+        self.rank = rank
+        self.gankster_rank = gankster_rank
+
+    @staticmethod
+    def from_gankster_rank(gankster_rank: str):
+        for gr in GanksterRank:
+            if gr.gankster_rank == gankster_rank:
+                return gr
+
 
 @dataclass
 class Team:
     """Class representing a gankster team"""
-    number: str = ""
+    number: int = 0
     name: str = ""
-    rank: str = "" #Team ranks are different than individual rank
+    rank: GanksterRank = None
     region: str = ""
     bio: str = ""
     roster: list[Player] = ()
-    subs: list[Player] = ()
     opggLink: str = ""
     created: datetime = None
     reputation: Reputation = None
+    logo_url: str = ""
 
     def __eq__(self, other):
         if isinstance(other, Team):
@@ -109,16 +201,35 @@ class Team:
     def __bool__(self):
         return bool(self.number or self.name)
 
+    def copy(self, other):
+        if isinstance(other, Team):
+            self.number = other.number
+            self.name = other.name
+            self.rank = other.rank
+            self.region = other.region
+            self.bio = other.bio
+            self.roster = other.roster
+            self.opggLink = other.opggLink
+            self.created = other.created
+            self.reputation = other.reputation
+            self.logo_url = other.logo_url
+
 @dataclass
 class Scrim:
     time: datetime
     scrim_format: ScrimFormat = ScrimFormat.NONE
     team: Team = None
     open: bool = True
+    gankster_id: int = 0
 
     def __eq__(self, other):
         if isinstance(other, Scrim):
             return self.time == other.time and self.scrim_format == other.scrim_format
+        return False
+
+    def equals_exact(self, other):
+        if isinstance(other, Scrim):
+            return self.time == other.time and self.scrim_format == other.scrim_format and self.team == other.team and self.open == other.open
         return False
 
     def __hash__(self):
@@ -127,11 +238,24 @@ class Scrim:
     def __str__(self):
         return f"<Scrim: time='{self.time.strftime('%m/%d/%y %I:%M %p')}', format='{self.scrim_format.format_short}', team={str(self.team)}, open={self.open}>"
 
-    def get_scrim_end_time(self):
+    def __repr__(self):
+        return f"<Scrim: time='{self.time.strftime('%m/%d/%y %I:%M %p')}', format='{self.scrim_format.format_short}', team={self.team}, open={self.open}>"
+
+    def get_scrim_end_time(self) -> datetime:
         return self.time + timedelta(hours=self.scrim_format.games)
 
-    def get_gankster_removal_time(self):
+    def get_gankster_removal_time(self) -> datetime:
         return self.time + timedelta(minutes=(40 * self.scrim_format.games))
+
+    def get_scrim_start_time_unix(self) -> int:
+        return int(self.time.timestamp() * 1000)
+
+    def get_scrim_end_time_unix(self) -> int:
+        return int(self.get_scrim_end_time().timestamp() * 1000)
+
+    @staticmethod
+    def timestamp_to_datetime(timestamp: int):
+        return datetime.fromtimestamp(timestamp / 1000)
 
 
     # def __repr__(self):
@@ -177,7 +301,18 @@ class ErrorName(Enum):
     SCRIM_REQUEST_NOT_FOUND = "ScrimRequestNotFound"
     GANKSTER_UNAVAILIBLE = "GanksterUnavailible"
     NO_SCRIM_BLOCK_FOUND = "NoScrimBlockFound"
+    GANKSTER_NO_CONTENT = "GanksterNoContent"
+    GANKSTER_BAD_REQUEST = "GanksterBadRequest"
+    GANKSTER_UNAUTHORIZED = "GanksterUnauthorized"
+    GANKSTER_FORBIDDEN = "GanksterForbidden"
+    GANKSTER_ENDPOINT = "GanksterEndpoint"
+    GANKSTER_TIMEOUT = "GanksterTimeout"
+    GANKSTER_TOO_MANY_REQUESTS = "GanksterTooManyRequests"
+    GANKSTER_DOWN = "GanksterDown"
     GANKSTER_FAILED = "GanksterFailed"
+    INVALID_TEAM = "InvalidTeam"
+    INVALID_PLAYER = "InvalidPlayer"
+    TEAM_NOT_FOUND = "TeamNotFound"
 
 ERROR_DESCRIPTIONS = {
     ErrorName.NONE: "No Issue",
@@ -219,7 +354,18 @@ ERROR_DESCRIPTIONS = {
     ErrorName.SCRIM_REQUEST_NOT_FOUND: "There was no scrim request matching the provided scrim found within the notifications to accept/decline",
     ErrorName.GANKSTER_UNAVAILIBLE: "Gankster is down at the moment, please try again later",
     ErrorName.NO_SCRIM_BLOCK_FOUND: "Could not find the given scrim block sceduled for team Cryobark",
-    ErrorName.GANKSTER_FAILED: "The given function's success condition failed to be met"
+    ErrorName.GANKSTER_NO_CONTENT: "No Content was found for the given url or bearer was missing (Gankster 204: No Content)",
+    ErrorName.GANKSTER_BAD_REQUEST: "Request format was invalid (Gankster 400: Bad Request)",
+    ErrorName.GANKSTER_UNAUTHORIZED: "Authorization was invalid or expired (Gankster 401: Unauthorized)",
+    ErrorName.GANKSTER_FORBIDDEN: "The given action was forbidden but authorization was successful (Gankster 403: Forbidden)",
+    ErrorName.GANKSTER_ENDPOINT: "The endpoint for the url was not found (Gankster 404: Not Found)",
+    ErrorName.GANKSTER_TIMEOUT: "Request took too long to process (Gankster 408: Request Timeout)",
+    ErrorName.GANKSTER_TOO_MANY_REQUESTS: "Too many requests have been performed in quick succession (Gankster 429: Too Many Requests)",
+    ErrorName.GANKSTER_DOWN: "Gankster is down at the moment (Gankster 500ish)",
+    ErrorName.GANKSTER_FAILED: "The given function's success condition failed to be met",
+    ErrorName.INVALID_TEAM: "The team stats could not be found for the given team, number or name required",
+    ErrorName.INVALID_PLAYER: "The player stats could not be found for the given player, puuid required",
+    ErrorName.TEAM_NOT_FOUND: "No team was found with the given name after searching gankster"
 }
 
 @dataclass

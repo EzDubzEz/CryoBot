@@ -11,10 +11,9 @@ from discord_stuff import DiscordStuff
 import functools
 
 DISCORD_TOKEN: str = getVariable("DISCORD_TOKEN")
-CHANNEL_ID: int = getVariable("CHANNEL_ID")
-POLL_CHANNEL_ID: int = getVariable("CHANNEL_ID")
-SCRIM_CHANNEL_ID: int = getVariable("CHANNEL_ID")
-ERROR_CHANNEL_ID: int = getVariable("CHANNEL_ID")
+POLL_CHANNEL_ID: int = getVariable("POLL_CHANNEL_ID")
+SCRIM_CHANNEL_ID: int = getVariable("SCRIM_CHANNEL_ID")
+ERROR_CHANNEL_ID: int = getVariable("ERROR_CHANNEL_ID")
 GUILD_ID: int = getVariable("GUILD_ID")
 TREBOTEHTREE: int = getVariable("TREBOTEHTREE")
 CRYOBARK_ROLE_ID: int = getVariable("CRYOBARK_ROLE_ID")
@@ -34,6 +33,8 @@ class CryoBot:
         self._latest_poll_message: discord.InteractionMessage
         self._poll_voters: set[int] = set()
 
+        self._incoming_scrim_request_messages: list[tuple[Scrim, discord.Message]] = []
+        self._outgoing_scrim_request_messages: list[tuple[Scrim, discord.Message]] = []
         self._current_scrims: set[Scrim] = set()
         self._scrim_messages: dict[Scrim, discord.Message] = {}
         self._played_scrims: set[Scrim] = set()
@@ -91,10 +92,10 @@ class CryoBot:
             except Exception as e:
                 debugPrint(f"Failed to start repeating updating scrim status loop: {e}")
             try:
-                reset_gankster_teams.start()
-                debugPrint(f"Starting repeating resetting gankster teams loop")
+                refresh_gankster_token.start()
+                debugPrint(f"Starting repeating refresh gankster token loop")
             except Exception as e:
-                debugPrint(f"Failed to start repeating resetting gankster teams loop: {e}")
+                debugPrint(f"Failed to start repeating refresh gankster token loop: {e}")
             await self._gankster.fill_team_stats(CRYOBARK)
 
         @tasks.loop(time=time(hour=4, tzinfo=ZoneInfo("America/New_York")))
@@ -142,15 +143,62 @@ class CryoBot:
             except Exception as e:
                 debugPrint(f"Issue in Google API loop: {e}")
 
-        @tasks.loop(time=[time(hour=hour, minute=minute) for hour in range(24) for minute in range(2, 60, 5)])
-        # @tasks.loop(seconds=15)
-        async def update_scrim_status():
+        async def handle_incoming_scrim_requests():
+            incoming_scrim_requests = await self._gankster.retrieve_incoming_scrim_requests()
+
+            # For every exting scrim request check if still present, if not remove it
+            for scrim_request, _ in self._incoming_scrim_request_messages.copy():
+                found = False
+                for i in range(len(incoming_scrim_requests)):
+                    if scrim_request.equals_exact(incoming_scrim_requests[i]):
+                        found = True
+                        break
+                if not found:
+                    await self._incoming_scrim_request_removed(scrim_request)
+
+            # For every new scrim request check if not already present, if so add it
+            for scrim_request in incoming_scrim_requests:
+                found = False
+                for i in range(len(self._incoming_scrim_request_messages)):
+                    if scrim_request.equals_exact(self._incoming_scrim_request_messages[i][0]):
+                        found = True
+                        break
+                if not found:
+                    await self._incoming_scrim_request_recieved(scrim_request)
+
+        async def handle_outgoing_scrim_requests():
+            outgoing_scrim_requests = await self._gankster.retrieve_outgoing_scrim_requests()
+
+            # For every exting scrim request check if still present, if not remove it
+            for scrim_request, _ in self._outgoing_scrim_request_messages.copy():
+                found = False
+                for i in range(len(outgoing_scrim_requests)):
+                    if scrim_request.equals_exact(outgoing_scrim_requests[i]):
+                        found = True
+                        break
+                if not found:
+                    await self._outgoing_scrim_request_removed(scrim_request)
+
+            # For every new scrim request check if not already present, if so add it
+            for scrim_request in outgoing_scrim_requests:
+                found = False
+                for i in range(len(self._outgoing_scrim_request_messages)):
+                    if scrim_request.equals_exact(self._outgoing_scrim_request_messages[i][0]):
+                        found = True
+                        break
+                if not found:
+                    await self._outgoing_scrim_request_recieved(scrim_request)
+
+        async def handle_cryobark_scrims():
             # Manually tested each possible scenario and it works, might add actual comments one day who knows
             now = datetime.now()
             for scrim in self._current_scrims.copy():
-                if not scrim.open and scrim.get_gankster_removal_time() < now:
-                    self._current_scrims.pop(scrim)
-                    self._played_scrims.add(scrim)
+                if scrim.get_gankster_removal_time() < now:
+                    if not scrim.open:
+                        self._current_scrims.pop(scrim)
+                        self._played_scrims.add(scrim)
+                    else:
+                        await self._scrim_request_passed(scrim)
 
             for scrim in self._played_scrims.copy():
                 if scrim.get_scrim_end_time() < now:
@@ -228,9 +276,20 @@ class CryoBot:
                     self._current_scrims.remove(scrim)
                     await self._scrim_request_created_cancelled(scrim) # GUD
 
-        @tasks.loop(time=time(hour=4))
-        async def reset_gankster_teams():
-            self._gankster.reset_teams()
+        # @tasks.loop(time=[time(hour=hour, minute=minute) for hour in range(24) for minute in range(2, 60, 1)])
+        @tasks.loop(minutes=1)
+        async def update_scrim_status():
+            debugPrint("Starting Update Scrim Status")
+            await handle_incoming_scrim_requests()
+            await handle_outgoing_scrim_requests()
+            await handle_cryobark_scrims()
+            debugPrint("Update Scrim Status Successful")
+
+        @tasks.loop(minutes=45)
+        async def refresh_gankster_token():
+            debugPrint("Refreshing Gankster Token")
+            await self._gankster.refresh()
+            debugPrint("Refreshing Gankster Token Successful")
 
         def _handle_interaction_error(func):
             @functools.wraps(func)
@@ -268,13 +327,13 @@ class CryoBot:
         async def help(interaction: discord.Interaction):
             debugPrint("Attempting to list commands")
             message = "/create_scrim_request [date] [time] [format]\n" \
-                            "/cancel_scrim_request [date] [time] [format]\n" \
-                            "/cancel_all_scrim_requests\n" \
+                            "/cancel_scrim_request [date] [time]\n" \
+                            "/cancel_scrim_block [date] [time] [cancellation_msg]\n" \
                             "/accept_scrim_request [team_name] [date] [time] [format]\n" \
                             "/decline_scrim_request [team_name] [date] [time] [format]\n" \
                             "/send_scrim_request [team_name] [date] [time] [format]\n" \
-                            "/retrieve_team_number [team_name]\n" \
-                            "/retrieve_team_data [team_number]\n" \
+                            "/retrieve_team_data [team_number] [team_name]\n" \
+                            "/update_team_players [team_number] [team_name]\n"\
                             "/help"
 
             embed = discord.Embed(
@@ -305,6 +364,7 @@ class CryoBot:
             await self._gankster.create_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Created")
             await interaction.followup.send("Scrim Request Sucessfully Created")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.describe(date = "mm/dd/yy", time="hh:mm AM|PM")
@@ -316,27 +376,29 @@ class CryoBot:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
                 return
-            scrim = Scrim(scrimTime) 
+            scrim = Scrim(scrimTime)
             await interaction.response.defer()
             await self._gankster.cancel_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Cancelled")
             await interaction.followup.send("Scrim Request Sucessfully Cancelled")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.describe(date = "mm/dd/yy", time="hh:mm AM|PM")
         @_handle_interaction_error
-        async def cancel_scrim_block(interaction: discord.Interaction, date: str, time: str,  message: str):
-            debugPrint(f"Attempting to cancel scrim block: date='{date}', time='{time}', message='{message}'")
+        async def cancel_scrim_block(interaction: discord.Interaction, date: str, time: str, team_name: str, cancellation_msg: str):
+            debugPrint(f"Attempting to cancel scrim block: date='{date}', time='{time}', team_name='{team_name}', cancellation_msg='{cancellation_msg}'")
             scrimTime = datetime.strptime(f"{date} {time}", "%m/%d/%y %I:%M %p")
             if scrimTime.minute != 0 and scrimTime.minute != 30:
                 debugPrint("Invalid Time Format Recieved")
                 await interaction.response.send_message("Scrims can only be scheduled in 30 minute intervals")
                 return
-            scrim = Scrim(scrimTime) 
+            scrim = Scrim(scrimTime, team=Team(name=team_name))
             await interaction.response.defer()
-            await self._gankster.cancel_scrim_block(scrim)
+            await self._gankster.cancel_scrim_block(scrim, cancellation_msg)
             debugPrint("Scrim Block Sucessfully Cancelled")
             await interaction.followup.send("Scrim Block Sucessfully Cancelled")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.choices(format=formats)
@@ -355,6 +417,7 @@ class CryoBot:
             await self._gankster.process_scrim_request(scrim, True)
             debugPrint("Scrim Request Sucessfully Accepted")
             await interaction.followup.send("Scrim Request Sucessfully Accepted")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.choices(format=formats)
@@ -373,6 +436,7 @@ class CryoBot:
             await self._gankster.process_scrim_request(scrim, False)
             debugPrint("Scrim Request Sucessfully Declined")
             await interaction.followup.send("Scrim Request Sucessfully Declined")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @discord.app_commands.choices(format=formats)
@@ -395,24 +459,35 @@ class CryoBot:
             await self._gankster.send_scrim_request(scrim)
             debugPrint("Scrim Request Sucessfully Sent")
             await interaction.followup.send("Scrim Request Sucessfully Sent")
+            await update_scrim_status()
 
         @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
         @_handle_interaction_error
-        async def retrieve_team_number(interaction: discord.Interaction, team_name: str):
-            debugPrint(f"Attempting to retrieve team number: team_name='{team_name}'")
+        async def retrieve_team_data(interaction: discord.Interaction, team_number: int=0, team_name: str=""):
+            debugPrint(f"Attempting to retrieve team data: team_number={team_number}, team_name='{team_name}'")
+            if not team_number and not team_name:
+                debugPrint("Invalid Team Format Recieved")
+                await interaction.response.send_message("Team Number or Team Name must not be blank")
+                return
             await interaction.response.defer()
-            number = await self._gankster.retrieve_team_number(team_name)
-            debugPrint("Team Number Sucessfully Retrieved")
-            await interaction.followup.send(f"The Team [{team_name}] has the number {number}")
-
-        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
-        @_handle_interaction_error
-        async def retrieve_team_data(interaction: discord.Interaction, team_number: str):
-            debugPrint(f"Attempting to retrieve team number: team_number='{team_number}'")
-            await interaction.response.defer()
-            team = Team(team_number)
+            team = Team(team_number, team_name)
             await self._gankster.fill_team_stats(team)
             debugPrint("Team Data Sucessfully Retrieved")
+            embed = DiscordStuff.create_team_data_embed(team)
+            await interaction.followup.send(embed=embed)
+
+        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
+        @_handle_interaction_error
+        async def update_team_players(interaction: discord.Interaction, team_number: int=0, team_name: str=""):
+            debugPrint(f"Attempting to update team players: team_number={team_number}, team_name='{team_name}'")
+            if not team_number and not team_name:
+                debugPrint("Invalid Team Format Recieved")
+                await interaction.response.send_message("Team Number or Team Name must not be blank")
+                return
+            await interaction.response.defer()
+            team = Team(team_number, team_name)
+            await self._gankster.update_team_players(team)
+            debugPrint("Team Players Sucessfully Updated")
             embed = DiscordStuff.create_team_data_embed(team)
             await interaction.followup.send(embed=embed)
 
@@ -489,7 +564,6 @@ class CryoBot:
 
     @_handle_automatic_error
     async def _scrim_request_created_cancelled(self, scrim: Scrim):
-
         if scrim in self._scrim_messages:
             await self._scrim_messages[scrim].delete()
             self._scrim_messages.pop(scrim)
@@ -569,6 +643,38 @@ class CryoBot:
         await self._scrim_channel.send(embed=embed)
 
         await self._google_api.update_scrim_results()
+
+    @_handle_automatic_error
+    async def _scrim_request_passed(self, scrim: Scrim):
+        if scrim in self._scrim_messages:
+            await self._scrim_messages[scrim].delete()
+            self._scrim_messages.pop(scrim)
+
+    @_handle_automatic_error
+    async def _incoming_scrim_request_removed(self, scrim: Scrim):
+        for scrim_request_message in self._incoming_scrim_request_messages:
+            if scrim_request_message[0].equals_exact(scrim):
+                await scrim_request_message[1].delete()
+                self._incoming_scrim_request_messages.remove(scrim_request_message)
+                break
+
+    @_handle_automatic_error
+    async def _incoming_scrim_request_recieved(self, scrim: Scrim):
+        embed = DiscordStuff.create_scrim_request_recieved_embed(scrim)
+        self._incoming_scrim_request_messages.append((scrim, await self._scrim_channel.send(f"<@&{MANAGER_ROLE_ID}>", embed=embed)))
+
+    @_handle_automatic_error
+    async def _outgoing_scrim_request_removed(self, scrim: Scrim):
+        for scrim_request_message in self._outgoing_scrim_request_messages:
+            if scrim_request_message[0].equals_exact(scrim):
+                await scrim_request_message[1].delete()
+                self._outgoing_scrim_request_messages.remove(scrim_request_message)
+                break
+
+    @_handle_automatic_error
+    async def _outgoing_scrim_request_recieved(self, scrim: Scrim):
+        embed = DiscordStuff.create_scrim_request_sent_embed(scrim)
+        self._outgoing_scrim_request_messages.append((scrim, await self._scrim_channel.send(f"<@&{MANAGER_ROLE_ID}>", embed=embed)))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import discord
-from scrim_classes import Scrim, Team
+from scrim_classes import Scrim, Team, Player
 from helper import getVariable, ordinal
 from random import random
 from datetime import timedelta
@@ -71,12 +71,12 @@ class DiscordStuff:
         return embed
 
     @_embed
-    def create_scrcim_request_recieved_embed(scrim: Scrim) -> discord.Embed:
+    def create_scrim_request_recieved_embed(scrim: Scrim) -> discord.Embed:
         """
         Creates the embed to post when a scrim request is recieved
 
         Args:
-            scrim (Scrim): The scrim request that was sent out
+            scrim (Scrim): The scrim request that was recieved
 
         Returns:
             embed (Embed): The discord embed that should be posted
@@ -96,14 +96,51 @@ class DiscordStuff:
 
         rep = ""
         if scrim.team.reputation:
-            rep = scrim.team.reputation.gankRep
+            rep = scrim.team.reputation.gank_rep
         embed.add_field(name="Team", value=scrim.team.name, inline=True)
-        embed.add_field(name="Rank", value=scrim.team.rank, inline=True)
+        embed.add_field(name="Rank", value=scrim.team.rank.rank, inline=True)
         embed.add_field(name="GankRep", value=rep, inline=True)
 
         embed.set_author(name="OP.GG", url=scrim.team.opggLink, icon_url="https://play-lh.googleusercontent.com/FeRWKSHpYNEW21xZCQ-Y4AkKAaKVqLIy__PxmiE_kGN1uRh7eiB87ZFlp3j1DRp9r8k")
 
         embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/Assist_Me_ping.png")
+
+        return embed
+
+    @_embed
+    def create_scrim_request_sent_embed(scrim: Scrim) -> discord.Embed:
+        """
+        Creates the embed to post when a scrim request is sent
+
+        Args:
+            scrim (Scrim): The scrim request that was sent out
+
+        Returns:
+            embed (Embed): The discord embed that should be posted
+        """
+        embed = discord.Embed(
+            title=f"Scrim Request Sent To {scrim.team.name}",
+            description="Let's hope they accept! We're desperate!",
+            color=discord.Color.green(),
+            url=f"https://lol.gankster.gg/teams/{scrim.team.number}"
+        )
+
+        dateString = scrim.time.strftime(f"%A, %b {ordinal(scrim.time.day)}")
+        timeString = scrim.time.strftime("%I:%M %p").lstrip("0")
+        embed.add_field(name="Date", value=dateString, inline=True)
+        embed.add_field(name="Time", value=timeString, inline=True)
+        embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
+
+        rep = ""
+        if scrim.team.reputation:
+            rep = scrim.team.reputation.gank_rep
+        embed.add_field(name="Team", value=scrim.team.name, inline=True)
+        embed.add_field(name="Rank", value=scrim.team.rank.rank, inline=True)
+        embed.add_field(name="GankRep", value=rep, inline=True)
+
+        embed.set_author(name="OP.GG", url=scrim.team.opggLink, icon_url="https://play-lh.googleusercontent.com/FeRWKSHpYNEW21xZCQ-Y4AkKAaKVqLIy__PxmiE_kGN1uRh7eiB87ZFlp3j1DRp9r8k")
+
+        embed.set_thumbnail(url="https://wiki.leagueoflegends.com/en-us/images/Hold_ping.png")
 
         return embed
 
@@ -131,11 +168,11 @@ class DiscordStuff:
         embed.add_field(name="Time", value=timeString, inline=True)
         embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
 
-        rep = scrim.team.reputation.gankRep if scrim.team.reputation else ""
+        rep = scrim.team.reputation.gank_rep if scrim.team.reputation else ""
         if scrim.team.name:
             embed.add_field(name="Team", value=scrim.team.name, inline=True)
         if scrim.team.rank:
-            embed.add_field(name="Rank", value=scrim.team.rank, inline=True)
+            embed.add_field(name="Rank", value=scrim.team.rank.rank, inline=True)
         if rep:
             embed.add_field(name="GankRep", value=rep, inline=True)
 
@@ -170,11 +207,11 @@ class DiscordStuff:
         embed.add_field(name="Time", value=timeString, inline=True)
         embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
 
-        rep = scrim.team.reputation.gankRep if scrim.team.reputation else ""
+        rep = scrim.team.reputation.gank_rep if scrim.team.reputation else ""
         if scrim.team.name:
             embed.add_field(name="Team", value=scrim.team.name, inline=True)
         if scrim.team.rank:
-            embed.add_field(name="Rank", value=scrim.team.rank, inline=True)
+            embed.add_field(name="Rank", value=scrim.team.rank.rank, inline=True)
         if rep:
             embed.add_field(name="GankRep", value=rep, inline=True)
 
@@ -315,11 +352,11 @@ class DiscordStuff:
         embed.add_field(name="Time", value=timeString, inline=True)
         embed.add_field(name="Format", value=scrim.scrim_format.format_short, inline=True)
 
-        rep = scrim.team.reputation.gankRep if scrim.team.reputation else ""
+        rep = scrim.team.reputation.gank_rep if scrim.team.reputation else ""
         if scrim.team.name:
             embed.add_field(name="Team", value=scrim.team.name, inline=True)
         if scrim.team.rank:
-            embed.add_field(name="Rank", value=scrim.team.rank, inline=True)
+            embed.add_field(name="Rank", value=scrim.team.rank.rank, inline=True)
         if rep:
             embed.add_field(name="GankRep", value=rep, inline=True)
 
@@ -386,5 +423,55 @@ class DiscordStuff:
 
         return embed
 
+    @_embed
     def create_team_data_embed(team: Team) -> discord.Embed:
-        return None
+        """
+        Creates the embed to post to show team data
+
+        Args:
+            scrim (Scrim): The scrim that was updated
+
+        Returns:
+            embed (Embed): The discord embed that should be posted
+        """
+        description = team.bio
+        mains: list[Player] = []
+        subs: list[Player] = []
+        for player in team.roster:
+            if player.is_sub:
+                subs.append(player)
+            else:
+                mains.append(player)
+
+        if len(mains):
+            description += "\n\nMain Roster:"
+            for player in mains:
+                description += f"\n[{player.name} | {player.rank}](https://op.gg/lol/summoners/{player.server}/{player.name.replace(' ', '%20')}-{player.tag})"
+
+        if len(subs):
+            description += "\n\nSubs:"
+            for player in subs:
+                description += f"\n[{player.name} | {player.rank}](https://op.gg/lol/summoners/{player.server}/{player.name.replace(' ', '%20')}-{player.tag})"
+
+        embed = discord.Embed(
+            title=team.name,
+            description=description,
+            color=discord.Color.purple(),
+            url=f"https://lol.gankster.gg/teams/{team.number}"
+        )
+
+        embed.add_field(name="GankRep", value=team.reputation.gank_rep, inline=True)
+        embed.add_field(name="Response\nRate", value=f"{int(team.reputation.response_rate * 100)}%", inline=True)
+        embed.add_field(name="Cancellation\nRate", value=f"{int(team.reputation.cancellation_rate * 100)}%", inline=True)
+
+        embed.add_field(name="Communication", value=team.reputation.communication, inline=True)
+        embed.add_field(name="Behavior", value=team.reputation.behavior, inline=True)
+        embed.add_field(name="On Time", value=team.reputation.on_time, inline=True)
+
+        embed.add_field(name="Likes", value=team.reputation.likes, inline=True)
+        embed.add_field(name="Dislikes", value=team.reputation.dislikes, inline=True)
+        embed.add_field(name="Responds\nWithin", value=team.reputation.response_time.formatted_time(), inline=True)
+
+        embed.set_thumbnail(url=team.logo_url if team.logo_url else "https://scontent-ord5-1.xx.fbcdn.net/v/t39.30808-6/361564138_269973222308481_6526154362229793324_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=uUl8jMkjKl0Q7kNvwGVRzj1&_nc_oc=Adk5vvRrbX_bkibGR9NqajI07fQJb2yMjK_a3KshkPXbaDD9O0ONrmiE55m7FzzuB4noHSa9R5uTuoeg4RZvB4Ma&_nc_zt=23&_nc_ht=scontent-ord5-1.xx&_nc_gid=Vrmy11sTxmffJL83Eu3thw&oh=00_AfZuVwgo988MXLf2Bvz-hBGkE_dy-xOn-o9MH473XwhYtw&oe=68D3E817")
+
+        return embed

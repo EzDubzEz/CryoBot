@@ -503,7 +503,7 @@ class GanksterAPI:
 
     def _parse_players(self, players: list[dict]) -> list[Player]:
         """Parses the retrieved json players list and returns value"""
-        [Player(name=player["playerData"]["name"], rank=f'{GanksterRank.from_gankster_rank(player["playerData"]["rank"]).rank} {player["playerData"]["division"]}',
+        return [Player(name=player["playerData"]["name"], rank=f'{GanksterRank.from_gankster_rank(player["playerData"]["rank"]).rank} {player["playerData"]["division"]}',
                 tag=player["playerData"]["tag"], puuid=player["playerData"]["puuid"], server=player["playerData"]["server"],
                 champions= [] if "stats" not in player["playerData"] else self._parse_champions(player["playerData"]["stats"]["champions"]), is_sub=player["isSub"],
                 last_updated=datetime.now() if "stats" not in player["playerData"] else Scrim.timestamp_to_datetime(player["playerData"]["stats"]["updatedAt"])) for player in players]

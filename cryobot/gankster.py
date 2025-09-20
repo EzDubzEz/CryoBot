@@ -1,14 +1,19 @@
-from scrim_classes import Scrim, Team, Player
-from gankster_api import GanksterAPI
-from browser import Browser
 import asyncio
-from scrim_classes import Scrim, Team
+
+from browser import Browser
+from gankster_api import GanksterAPI
 from helper import getVariable
+from scrim_classes import Player, Scrim, Team
 
 CRYOBARK: Team = getVariable("CRYOBARK")
 WILDCARD_TEAM: Team = getVariable("WILDCARD_TEAM")
 
 class Gankster:
+    """
+    Handles everything to do with Gankster and determines best sub class to perform task
+
+    Currently just a passthrough since Browser is deprecated and GanksterAPI does everything
+    """
     def __init__(self):
         self._gankster_api = GanksterAPI()
         # self._browser = Browser()
@@ -31,6 +36,9 @@ class Gankster:
 
         Returns:
             list[Scrim]: The list of outgoing scrim requests, team unknown
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         return await asyncio.to_thread(self._gankster_api.retrieve_outgoing_scrims, team)
 
@@ -40,6 +48,9 @@ class Gankster:
 
         Returns:
             list[Scrim]: The list of incoming scrim requests with filled in team
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         return await asyncio.to_thread(self._gankster_api.retrieve_incoming_scrim_requests)
 
@@ -49,6 +60,9 @@ class Gankster:
 
         Returns:
             list[Scrim]: The list of outgoing scrim requests with filled in team
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         return await asyncio.to_thread(self._gankster_api.retrieve_outgoing_scrim_requests)
 
@@ -61,6 +75,9 @@ class Gankster:
 
         Returns:
             None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.fill_team_stats, team)
 
@@ -73,6 +90,9 @@ class Gankster:
 
         Returns:
             None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.update_team_players, team)
 
@@ -85,6 +105,9 @@ class Gankster:
 
         Returns:
             None
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.fill_player_stats, player)
 
@@ -98,6 +121,9 @@ class Gankster:
 
         Returns:
             bool: Whether or not the given scrim was found
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         return await asyncio.to_thread(self._gankster_api.process_scrim_request, scrim, accept)
 
@@ -107,6 +133,9 @@ class Gankster:
 
         Args:
             scrim (Scrim): The scrim request to create
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.create_scrim_request, scrim)
 
@@ -116,12 +145,21 @@ class Gankster:
 
         Args:
             scrim (Scrim): The scrim request to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.cancel_scrim_request, scrim)
 
     async def cancel_scrim_block(self, scrim: Scrim, message: str) -> None:
         """
-        Cancels all outgoing scrim requests
+        Cancels a confirmed scrim block
+
+        Args:
+            scrim (Scrim): The scrim block to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.cancel_scrim_block, scrim, message)
 
@@ -131,5 +169,8 @@ class Gankster:
 
         Args:
             scrim (Scrim): The scrim request to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
         """
         await asyncio.to_thread(self._gankster_api.send_scrim_request, scrim)

@@ -1,14 +1,17 @@
-import discord
-from scrim_classes import Scrim, Team, Player
-from helper import getVariable, ordinal
-from random import random
+import random
 from datetime import timedelta
+
+import discord
+
+from helper import getVariable, ordinal
+from scrim_classes import Player, Scrim, Team
 
 DISCORD_TOKEN: str = getVariable("DISCORD_TOKEN")
 CHANNEL_ID: int = getVariable("CHANNEL_ID")
 ZINSKI_ODDS: float = getVariable("ZINSKI_ODDS")
 
 class DiscordStuff:
+    """Handles all static methods to create discord things (Embeds, Polls, etc) that get returned and sent"""
     def create_weekly_poll(start, end) -> discord.Poll:
         """
         Creates the Poll for the weekly availibility poll
@@ -38,7 +41,7 @@ class DiscordStuff:
         """ Decorator to add a footer to discord embeds """
         def wrapper(*args, **kwargs):
             embed: discord.Embed = func(*args, **kwargs)
-            if random()  < ZINSKI_ODDS:
+            if random.random()  < ZINSKI_ODDS:
                 embed.set_footer(text="Hi Zinski :D")
             return embed
         return wrapper

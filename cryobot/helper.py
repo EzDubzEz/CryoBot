@@ -1,9 +1,11 @@
-from dotenv import load_dotenv
-load_dotenv()
-import os
 import json
+import os
+
+from dotenv import load_dotenv
 
 from scrim_classes import Team
+
+load_dotenv()
 
 constants = {
     "DEBUG_MODE": True,
@@ -11,12 +13,9 @@ constants = {
     "POLL_CHANNEL_ID": 1414775214616744076,
     "SCRIM_CHANNEL_ID": 1418809724022951946,
     "ERROR_CHANNEL_ID": 1418809785255465031,
-    # "GUILD_ID": 378727445903441930,  # Testing Variable
     "GUILD_ID": 1291838766733852785,
     "CRYOBARK_ROLE_ID": 1405677183988666410,
     "MANAGER_ROLE_ID": 1291840665335894027,
-    # "CRYOBARK_ROLE_ID": 378729316990713856, # Testing Variable
-    # "MANAGER_ROLE_ID": 378728545826111508, # Testing Variable
     "TREBOTEHTREE": 306170246232801290,
     "GOOGLE_SCOPES": ["https://www.googleapis.com/auth/script.external_request", "https://www.googleapis.com/auth/documents", "https://www.googleapis.com/auth/spreadsheets"],
     "ZINSKI_ODDS": .01,
@@ -31,20 +30,24 @@ DEBUG_MODE: bool = constants["DEBUG_MODE"]
 UPDATE_VARIABLES: str = constants["UPDATE_VARIABLES"]
 
 def _get_update_variables():
+    """Reads update_variables from the json file"""
     with open(UPDATE_VARIABLES, "r") as f:
         return json.load(f)
 
 def _save_update_varaibles():
+    """Writes update_variables to the json file"""
     with open(UPDATE_VARIABLES, "w") as f:
         json.dump(update_variables, f, indent=4)
 
 update_variables = _get_update_variables()
 
 def debugPrint(text: str):
+    """Should be used instead of print to apropriatly manage what the bot logs"""
     if DEBUG_MODE:
         print(text)
 
 def getVariable(varName: str):
+    """Gets the value of a variable checking constants, update_variables, and .env in that order"""
     if varName in constants:
         return constants[varName]
     if varName in update_variables:
@@ -52,8 +55,10 @@ def getVariable(varName: str):
     return os.getenv(varName)
 
 def setVariable(varName: str, value):
+    """Sets the value of a variable in the UPDATE_VARIABLES json"""
     update_variables[varName] = value
     _save_update_varaibles()
 
 def ordinal(n):
+    """Converts a number to the formated number ex. 1 to 1st"""
     return str(n)+("th" if 4<=n%100<=20 else {1:"st",2:"nd",3:"rd"}.get(n%10, "th"))

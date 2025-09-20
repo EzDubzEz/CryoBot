@@ -2,9 +2,7 @@
 Cryobark Discord Bot
 
 # TODO:
-- Setup gankster api calls to retrieve_incoming_scrim_requests (without team information), fill_team_stats, and fill_player_stats
-- Look into gankster api cookies to retrieve_incoming_scrim_requests (with team information), scrims listed, incoming scrim requests, etc. whatever is possible 
-- Setup Selenium to scrape scrim team information for the bot to use and navigate gankster scrim creation etc.
+- Look into adding to google script to get stats to do stuff (retrieve team scrim history, retrieve winrate, various queries, etc.)
 
 # Selenium Setup
 - You need to manually log into gankster for chrome, and gankster/google/riot don't let you log in if selenium opens the browser so that must be done manually aswell

@@ -7,7 +7,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from helper import getVariable, debugPrint
+from helper import debugPrint, getVariable
 from scrim_classes import CryoBotError, ErrorName, Scrim
 
 CHROME_PATH: str = getVariable("CHROME_PATH")
@@ -17,6 +17,11 @@ CLIENT_SECRET: str = getVariable("CLIENT_SECRET")
 GOOGLE_URL: str = getVariable("GOOGLE_URL")
 
 class GoogleAPI:
+    """
+    Handles everything to do with making calls to the Cryobark google script
+
+    Script manages the Scrim Results google sheet and Scouting Reports google doc
+    """
     def __init__(self):
         self._creds = self._get_creds()
         self._session: ClientSession = None
@@ -27,10 +32,12 @@ class GoogleAPI:
 
     def _get_creds(self) -> Credentials:
         creds = None
+        # If credits present
         if os.path.exists('google_auth_token.json'):
             creds = Credentials.from_authorized_user_file('google_auth_token.json', GOOGLE_SCOPES)
 
         if not creds or not creds.valid:
+            # Try to refresh and update creds if possible
             if creds and creds.expired and creds.refresh_token:
                 try: creds.refresh(Request())
                 except: return None
@@ -59,6 +66,7 @@ class GoogleAPI:
             }
         }, GOOGLE_SCOPES)
 
+        # Open the link for the user to fill and close automatically
         flow.redirect_uri = "http://localhost:8080/"
         auth_url, state = flow.authorization_url(prompt='consent')
         subprocess.Popen([
@@ -68,29 +76,41 @@ class GoogleAPI:
             auth_url
         ])
 
+        # Update new creds and save to file
         self._creds = flow.run_local_server(port=8080, open_browser=False, state=state)
         self._headers = {"Authorization": f"Bearer {self._creds.token}","Content-Type": "application/json"}
 
         with open('google_auth_token.json', 'w') as token_file:
             token_file.write(self._creds.to_json())
 
-    async def refresh_creds(self)->None:
+    async def refresh_creds(self) -> None:
         """
         Call occasionally to just keep auth going good and creds refreshed
 
         Returns:
             None
         """
-        self._creds.refresh(Request())
         try:
-            await self.update_scrim_results()
-        except:
-            pass
+            self._creds.refresh(Request())
+            await self.refresh_creds()
+        except: pass
 
     def is_auth_setup(self) -> bool:
         return self._creds != None
 
-    async def _make_call(self, payload):
+    async def _make_call(self, payload: dict) -> None:
+        """
+        Makes an API call to the Cryobark google script
+
+        Args:
+            payload (dict): The payload for the given api call
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         debugPrint(f"Making Google Call: payload={payload}")
         if not self.is_auth_setup():
             raise CryoBotError(ErrorName.AUTH_NOT_SETUP, fields="D:")
@@ -117,7 +137,6 @@ class GoogleAPI:
         Raises:
             CryoBotError: If issue occurs
         """
-
         payload = {
             "function": "refreshToken",
             "devMode": True

@@ -1,27 +1,34 @@
-import requests
-from datetime import datetime, timedelta
-from time import sleep
 
-from helper import getVariable, setVariable, debugPrint
-from scrim_classes import Scrim, Team, Player, Champion, ScrimFormat, GanksterRank, ResponseTime, Reputation, CryoBotError, ErrorName
+from datetime import datetime, timedelta
+
+import requests
+
+from helper import debugPrint, getVariable, setVariable
+from scrim_classes import Champion, CryoBotError, ErrorName, GanksterRank, Player, Reputation, ResponseTime, Scrim, ScrimFormat, Team
 
 GANKSTER_API_KEY: str = getVariable("GANKSTER_API_KEY")
 CRYOBARK: Team = getVariable("CRYOBARK")
 
 class GanksterAPI:
+    """
+    Handles everything that has to do with gankster API calls, and everything currently supports everything that uses gankster
+
+    GANKSTER_REFRESH_TOKEN (in update_vars.json) needed
+    """
     def __init__(self):
         self._bearer: str = ""
         self._headers: dict[str, str] = {"authorization": self._bearer, "cookie": f"g-active-team={CRYOBARK.number}"}
         self._refresh_token: str = getVariable("GANKSTER_REFRESH_TOKEN")
 
         self.refresh_bearer()
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-    def refresh_bearer(self):
+
+    def refresh_bearer(self) -> None:
+        """
+        Refreshes everything for gankster to be called every so often
+
+        Returns:
+            None
+        """
         url = f"https://securetoken.googleapis.com/v1/token?key={GANKSTER_API_KEY}"
         payload = {
             "grant_type": "refresh_token",
@@ -101,6 +108,19 @@ class GanksterAPI:
             return self._handle_response(response, f"type='PATCH', url='{url}', payload={payload}")
 
     def _retrieve_outgoing_public_scrims(self, team: Team) -> list[Scrim]:
+        """
+        Retrieves a list of scrim requests the team has sent out visible to the public (open/booked)
+        If the team is Cryobark it will ignore booked scrims
+
+        Args:
+            team (Team): The team to view outgoing public scrims for
+
+        Returns:
+            list[Scrim]: The list of outgoing public scrim requests, team unknown
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         if not team.number:
             if not team.name:
                 team = CRYOBARK
@@ -121,6 +141,15 @@ class GanksterAPI:
         return scrims
 
     def retrieve_booked_scrims(self) -> list[Scrim]:
+        """
+        Retrieves a list of Cryobark's booked scrims
+
+        Returns:
+            list[Scrim]: The list of booked scrims
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         url = "https://lol.gankster.gg/api/v1/chats/scrim"
         response = self._make_call("GET", url)
    
@@ -138,6 +167,18 @@ class GanksterAPI:
         return scrims
 
     def retrieve_outgoing_scrims(self, team: Team) -> list[Scrim]:
+        """
+        Retrieves a list of scrim requests the team has sent out
+
+        Args:
+            team (Team): The team to view outgoing scrims for
+
+        Returns:
+            list[Scrim]: The list of outgoing scrim requests, team unknown if not for Cryobark
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         scrims = self._retrieve_outgoing_public_scrims(team)
 
         if team != CRYOBARK:
@@ -146,6 +187,15 @@ class GanksterAPI:
         return scrims + self.retrieve_booked_scrims()
 
     def retrieve_incoming_scrim_requests(self) -> list[Scrim]:
+        """
+        Retrieves a list of incoming scrim requests for Cryobark
+
+        Returns:
+            list[Scrim]: The list of incoming scrim requests with filled in team
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         url = "https://lol.gankster.gg/api/v1/chats/scrim"
         response = self._make_call("GET", url)
 
@@ -159,6 +209,15 @@ class GanksterAPI:
         return scrims
 
     def retrieve_outgoing_scrim_requests(self) -> list[Scrim]:
+        """
+        Retrieves a list of outgoing scrim requests from Cryobark
+
+        Returns:
+            list[Scrim]: The list of outgoing scrim requests with filled in team
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         url = "https://lol.gankster.gg/api/v1/chats/scrim"
         response = self._make_call("GET", url)
 
@@ -172,6 +231,18 @@ class GanksterAPI:
         return scrims
 
     def fill_team_stats(self, team: Team) -> None:
+        """
+        Fills in the stats for the given team based on team number
+
+        Args:
+            team (Team): the team class to fill in with the new stats
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         if team.number:
             url = f"https://lol.gankster.gg/api/v1/teams/{team.number}"
             response = self._make_call("GET", url)
@@ -188,16 +259,40 @@ class GanksterAPI:
         else:
             raise CryoBotError(ErrorName.INVALID_TEAM, f"team={team}")
 
-    def _retrieve_team_number(self, team_name) -> None:
-            url = f"https://lol.gankster.gg/api/v1/teams/search_advanced?query={team_name}"
-            response = self._make_call("GET", url)
+    def _retrieve_team_number(self, team_name) -> int:
+        """
+        Retrieves the team number from the given team name
 
-            if not len(response["results"]):
-                raise CryoBotError(ErrorName.TEAM_NOT_FOUND, f"team_name={team_name}")
+        Args:
+        team_name (str): the team's name to search for
 
-            return response["results"][0]["team"]["id"]
+        Returns:
+            int: the team's team number
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
+        url = f"https://lol.gankster.gg/api/v1/teams/search_advanced?query={team_name}"
+        response = self._make_call("GET", url)
+
+        if not len(response["results"]):
+            raise CryoBotError(ErrorName.TEAM_NOT_FOUND, f"team_name={team_name}")
+
+        return response["results"][0]["team"]["id"]
 
     def fill_player_stats(self, player: Player) -> None:
+        """
+        Fills in the stats for the given player based on puuid
+
+        Args:
+        player (Player): the player class to fill in with the new stats
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         if not player.puuid:
             raise CryoBotError(ErrorName.INVALID_PLAYER, f"player={player}")
         if not player.server:
@@ -210,6 +305,19 @@ class GanksterAPI:
 
 
     def process_scrim_request(self, scrim: Scrim, accept:bool=True) -> bool:
+        """
+        Accepts/Declines the given scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to accept
+            accept (bool): Whether or not to accept the request
+
+        Returns:
+            bool: Whether or not the given scrim was found
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         scrims = self.retrieve_incoming_scrim_requests()
 
         found = False
@@ -235,9 +343,17 @@ class GanksterAPI:
                 "status": "REJECTED"
             }
         self._make_call("PATCH", url, payload)
-        pass
 
     def create_scrim_request(self, scrim: Scrim) -> None:
+        """
+        Creates a scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to create
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         url = "https://lol.gankster.gg/api/v1/events/bulk"
         payload = [{"endTime": scrim.get_scrim_end_time_unix(),
             "eventType": "LFS",
@@ -249,6 +365,15 @@ class GanksterAPI:
         self._make_call("POST", url, payload)
 
     def cancel_scrim_request(self, scrim: Scrim) -> None:
+        """
+        Cancels an outgoing scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         scrims = self._retrieve_outgoing_public_scrims(CRYOBARK)
 
         found = False
@@ -263,6 +388,15 @@ class GanksterAPI:
         self._make_call("DELETE", url)
 
     def cancel_scrim_block(self, scrim: Scrim, msg: str) -> None:
+        """
+        Cancels a confirmed scrim block
+
+        Args:
+            scrim (Scrim): The scrim block to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         scrims = self.retrieve_booked_scrims()
 
         found = False
@@ -283,6 +417,15 @@ class GanksterAPI:
         self._make_call("PATCH", url, payload)
 
     def send_scrim_request(self, scrim: Scrim) -> None:
+        """
+        Sends a scrim request
+
+        Args:
+            scrim (Scrim): The scrim request to cancel
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         if not scrim.team.number:
             if scrim.team.name:
                 scrim.team.number = self._retrieve_team_number(scrim.team.name)
@@ -309,9 +452,20 @@ class GanksterAPI:
         }
 
         self._make_call("POST", url, payload)
-        pass
 
     def update_team_players(self, team: Team) -> None:
+        """
+        Fills in the stats for the given team and updatees players
+
+        Args:
+            team (Team): the team class to fill in with the new stats and update players for
+
+        Returns:
+            None
+
+        Raises:
+            CryoBotError: If issue occurs
+        """
         self.fill_team_stats(team)
         for player in team.roster:
             if player.last_updated < datetime.now() - timedelta(hours=24):
@@ -319,6 +473,7 @@ class GanksterAPI:
                 except CryoBotError as e: debugPrint(f"Failed to update player: {player.name}")
 
     def _update_player(self, player: Player) -> None:
+        """Updates the given player on gankster and fills in their new stats"""
         if not player.puuid:
             raise CryoBotError(ErrorName.INVALID_PLAYER, f"player={player}")
         if not player.server:
@@ -333,48 +488,29 @@ class GanksterAPI:
         player.copy(response["player"])
 
     def _parse_team(self, team: dict) -> Team:
+        """Pareses the retrieved json team and returns value"""
         return Team(number=team["id"], name=team["name"], rank=GanksterRank.from_gankster_rank(team["lolRank"]), region=team["lolServer"], bio=team.get("bio") or "",
              roster=self._parse_players(team["lolRoster"]), opggLink=team.get("opggLink", "") or "", created=Scrim.timestamp_to_datetime(team["createdAt"]),
              reputation=self._parse_reputation(team["reputation"]), logo_url=team.get("logo") or "")
 
     def _parse_players(self, players: list[dict]) -> list[Player]:
+        """Parses the retrieved json players list and returns value"""
         [Player(name=player["playerData"]["name"], rank=f'{GanksterRank.from_gankster_rank(player["playerData"]["rank"]).rank} {player["playerData"]["division"]}',
                 tag=player["playerData"]["tag"], puuid=player["playerData"]["puuid"], server=player["playerData"]["server"],
                 champions= [] if "stats" not in player["playerData"] else self._parse_champions(player["playerData"]["stats"]["champions"]), is_sub=player["isSub"],
                 last_updated=datetime.now() if "stats" not in player["playerData"] else Scrim.timestamp_to_datetime(player["playerData"]["stats"]["updatedAt"])) for player in players]
 
     def _parse_player(self, player: dict) -> Player:
+        """Parses the retrieved json player and returns value"""
         return Player(name=player["name"], rank=f'{GanksterRank.from_gankster_rank(player["rank"]).rank} {player["division"]}', tag=player["tag"], puuid=player["puuid"],
                       server=player["server"], champions=self._parse_champions(player["stats"]["champions"]), last_updated=Scrim.timestamp_to_datetime(player["stats"]["updatedAt"]))
 
     def _parse_champions(self, champions: list[dict]) -> list[Champion]:
+        """Parses the retrieved json champions list and returns value"""
         return [Champion(name=champ["name"], level=champ["level"], points=champ["points"], image_url=champ['imageURL']) for champ in champions]
 
     def _parse_reputation(self, reputation: dict) -> Reputation:
+        """Parses the retrieved json reputation and returns value"""
         return Reputation(gank_rep=reputation["rating"], likes=reputation["posTotalCount"], dislikes=reputation["negTotalCount"], response_time=ResponseTime(reputation["responseTimeSec"]),
                           cancellation_rate=reputation["cancellationRate"], response_rate=reputation["responseRate"], communication=reputation["feedbackCommunicationScore"], behavior=reputation["feedbackBehaviorScore"],
                           on_time=reputation["feedbackOnTimeScore"])
-
-# if __name__ == "__main__":
-    # scrims = GanksterAPI().retrieve_outgoing_scrims(CRYOBARK)
-    # # print(scrims)
-    # player = Player("", "", puuid="uZGaTQBfV9GW9IjKoJRcMY0CoKUQ82Vlb8536qGzLck1xFKpzlaUwPq5609L8WHZUGphR2Y7ro6dHg", server="NA")
-    # gank = GanksterAPI()
-    # scrim = Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo"))
-    # skrim = Scrim(datetime.strptime('09/29/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo", number=111773))
-    # import time
-    # start = time.time()
-    # # gank.update_team_players(Team(89033))
-    # # gank.create_scrim_request(scrim)
-    # # gank.cancel_scrim_block(scrim, "scrim canceled")
-    # # gank.process_scrim_request(scrim, False)
-    # gank.send_scrim_request(scrim)
-    # # gank.cancel_scrim_request(scrim)
-    # # GanksterAPI().update_player(player)
-    # # GanksterAPI().fill_player_stats(player)
-    # # GanksterAPI().fill_team_stats(CRYOBARK)
-    # # print(gank.retrieve_incoming_scrim_requests())
-    # # print(gank.retrieve_outgoing_scrim_requests())
-    # print(time.time() - start)
-    # print()
-    # print()

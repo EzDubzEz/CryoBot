@@ -1,7 +1,8 @@
 import requests
-from urllib.parse import urlencode
-from helper import getVariable
 from time import sleep
+from urllib.parse import urlencode
+
+from helper import debugPrint, getVariable
 
 RIOT_API_KEY: str = getVariable("RIOT_API_KEY")
 
@@ -21,7 +22,7 @@ class RiotAPI:
                 sleep(.25)
                 return RiotAPI.get(url, params, attempts+1)
             else:
-                print("ERROR: ", rtn['status']['status_code'])
+                debugPrint("Riot API Error: ", rtn['status']['status_code'])
                 # raise Exception("ERRRORR: ", rtn['status']['status_code'])
         return rtn
 

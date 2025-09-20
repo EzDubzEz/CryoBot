@@ -1,10 +1,10 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from enum import Enum
-from dataclasses import dataclass, field
 from typing import Optional
 
 class ScrimFormat(Enum):
+    """Enum representing possible gankster scrim formats"""
     BEST_OF_ONE = ("Bo1", "Best of One", "BO1", 1)
     BEST_OF_TWO = ("Bo2", "Best of Two", "BO2", 2)
     BEST_OF_THREE = ("Bo3", "Best of Three", "BO3", 3)
@@ -42,6 +42,7 @@ class ScrimFormat(Enum):
                 return sf
 
 class Tier(Enum):
+    """Enum representing the different lol ranked tiers"""
     IRON = "Iron"
     BRONZE = "Bronze"
     SILVER = "Silver"
@@ -54,6 +55,7 @@ class Tier(Enum):
     CHALLENGER = "Challenger"
 
 class Position(Enum):
+    """Enum representing the different lol positions"""
     TOP = "Top"
     JUNGLE = "Jungle"
     MIDDLE = "Middle"
@@ -62,6 +64,7 @@ class Position(Enum):
 
 @dataclass
 class Rank:
+    """Class representing a League of Legends rank"""
     tier: Tier
     division: str
     lp: int
@@ -102,6 +105,7 @@ class Player:
 
 @dataclass
 class ResponseTime:
+    """Class representing the Gankster average response time in seconds"""
     time: int = 0
 
     def formatted_time(self):
@@ -129,6 +133,7 @@ class ResponseTime:
 
 @dataclass
 class Reputation:
+    """Class representing the Gankster reputation"""
     gank_rep: float = 0
     likes: int = 0
     dislikes: int = 0
@@ -141,6 +146,7 @@ class Reputation:
     reviews: list[str] = ()
 
 class GanksterRank(Enum):
+    """Enum representing the different possible Gankster ranks"""
     UNRANKED = ("Unranked", 0)
     IRON = ("Iron", 10)
     IRON_BRONZE = ("Iron/Bronze", 15)
@@ -216,6 +222,7 @@ class Team:
 
 @dataclass
 class Scrim:
+    """Class representing a Gankster scrim"""
     time: datetime
     scrim_format: ScrimFormat = ScrimFormat.NONE
     team: Team = None
@@ -257,11 +264,8 @@ class Scrim:
     def timestamp_to_datetime(timestamp: int):
         return datetime.fromtimestamp(timestamp / 1000)
 
-
-    # def __repr__(self):
-    #     return f"<Scrim {self.scrim_format.name} at {self.date_time}>"
-
 class ErrorName(Enum):
+    """Enum representing each possible CryoBarkError"""
     NONE = "None"
     UNKNOWN = "Unknown"
     AUTH_NOT_SETUP = "AuthNotSetup"
@@ -370,6 +374,7 @@ ERROR_DESCRIPTIONS = {
 
 @dataclass
 class CryoBotError(Exception):
+    """Class representing a custom error that will be thrown when problem is known"""
     name: ErrorName
     fields: str
     description: Optional[str] = None

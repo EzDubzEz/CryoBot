@@ -1,14 +1,15 @@
+import functools
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
 import discord
 from discord.ext import commands, tasks
-import aiohttp
-from helper import debugPrint, getVariable
-from datetime import datetime, timedelta, time
-from zoneinfo import ZoneInfo
-from scrim_classes import Scrim, Team, ScrimFormat, Reputation, CryoBotError, ErrorName, Reputation
-from google_api import GoogleAPI
+
 from gankster import Gankster
+from google_api import GoogleAPI
+from helper import debugPrint, getVariable
+from scrim_classes import CryoBotError, Scrim, ScrimFormat, Team
 from discord_stuff import DiscordStuff
-import functools
 
 DISCORD_TOKEN: str = getVariable("DISCORD_TOKEN")
 POLL_CHANNEL_ID: int = getVariable("POLL_CHANNEL_ID")

@@ -1,25 +1,30 @@
+import pathlib
+import re
+import traceback
+from datetime import datetime, timedelta
+from time import sleep
+
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import WebDriverException , TimeoutException
-import re
-from datetime import datetime, timedelta
 
-import pathlib
-import traceback
 from helper import debugPrint, getVariable
-from scrim_classes import Scrim, ScrimFormat, Team, CryoBotError, ErrorName
-from time import sleep
-
+from scrim_classes import CryoBotError, ErrorName, Scrim, ScrimFormat, Team
 
 TEAM_LINK: str = getVariable("TEAM_LINK")
 DATETIME_CHARACTER: str = getVariable("DATETIME_CHARACTER")
 CHROMEDRIVER_PATH: str = getVariable("CHROMEDRIVER_PATH")
 
 class Browser:
+    """
+    Deprecated: Use GanksterAPI instead
+
+    Handles all Selenium functions
+    """
     def __init__(self):
         self._options = Options()
         self._options.add_argument("--window-size=1920,1080")
@@ -412,6 +417,7 @@ class Browser:
         return ""
 
     def _select_date(self, date: datetime):
+        """Selects the date from the calendar popup"""
         start = datetime.now()
         # Navigate Calendar To Correct Month/Year
         while datetime.now() - start < timedelta(seconds=10):
@@ -425,56 +431,3 @@ class Browser:
 
         # Select Date From Calendar
         self._driver.find_element(By.XPATH, f"//div[@title='{date.strftime('%b %d, %Y')}']//span").click()
-
-    @_handle_driver
-    def get_browser_auth(self):
-        cookies = self._driver.get_cookies()
-        cookie_dict = {c['name']: c['value'] for c in cookies}
-
-        # 3. Extract localStorage tokens (where Firebase usually stores them)
-        bearer = self._driver.execute_script("return window.localStorage.getItem('gankster:authUser');")
-        import json
-        if bearer:
-            try:
-                auth_json = json.loads(bearer)
-                id_token = auth_json["stsTokenManager"]["accessToken"]   # The Bearer token
-                refresh_token = auth_json["stsTokenManager"]["refreshToken"]
-                print("Bearer token:", id_token[:40], "...")
-                print("Refresh token:", refresh_token[:40], "...")
-            except Exception as e:
-                print("Could not parse authUser JSON:", e)
-        else:
-            print("No authUser found in localStorage. Inspect manually.")
-        # print(cookies)
-        # print(cookie_dict)
-        for key in cookie_dict:
-            print(f"{key}={cookie_dict[key]}", end='; ')
-        print()
-
-if __name__ == "__main__":
-    browser = Browser()
-    # browser.get_browser_auth()
-    # for _ in range(100):
-    #     if browser.retrieve_team_number('TD Tidal') != "85190":
-    #         print("Missed")
-    # browser.send_scrim_request(Scrim(datetime.strptime('12/09/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
-    # browser.create_scrim_request(Scrim(datetime.strptime('12/06/25 8:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
-    # browser.cancel_scrim_block(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), "Cancellation")
-    # browser.cancel_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")))
-    # browser.process_scrim_request(Scrim(datetime.strptime('10/07/25 10:00', '%m/%d/%y %H:%M'), ScrimFormat.FOUR_GAMES, Team(name="TeamTrebo")), True) #TODO Test
-    # browser.create_scrim_request(Scrim(datetime.strptime('09/07/25 10:00',
-    #               '%m/%d/%y %H:%M'), ScrimFormat.BEST_OF_THREE))
-    # print(f"Team Link: {browser.retrieve_team_number('TD Tidal')}")
-    # print(f"Team Link: {browser.retrieve_team_number('TestingT')}")
-    # print(datetime.strptime("Jan 1, 12:00am 2025", "%b %d, %I:%M%p %Y"))
-    # browser = Browser()
-    # start = datetime.now()
-    # browser.retrieve_scrim_requests()
-    # end = datetime.now()
-    # print(end - start)
-    # browser.retrieve_scrim_requests()
-    # print(datetime.now() - end)
-    # a = Browser().retrieve_booked_scrim_requests()
-    # # print("Done4")
-    # for aa in a:
-    #     print(aa)

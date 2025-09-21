@@ -112,6 +112,9 @@ class GoogleAPI:
             CryoBotError: If issue occurs
         """
         debugPrint(f"Making Google Call: payload={payload}")
+        if not getVariable("AUTOMATIC_GOOGLE"):
+            debugPrint("Exiting Google Because Automatic Google")
+            return
         if not self.is_auth_setup():
             raise CryoBotError(ErrorName.AUTH_NOT_SETUP, fields="D:")
         if not self._session:

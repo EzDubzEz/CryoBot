@@ -28,18 +28,21 @@ class ScrimFormat(Enum):
         for sf in ScrimFormat:
             if sf.format_short == format_short:
                 return sf
+        return ScrimFormat.NONE
 
     @staticmethod
     def from_long(format_long: str):
         for sf in ScrimFormat:
             if sf.format_long == format_long:
                 return sf
+        return ScrimFormat.NONE
 
     @staticmethod
     def from_gankster_format(gankster_format: str):
         for sf in ScrimFormat:
             if sf.gankster_format == gankster_format:
                 return sf
+        return ScrimFormat.NONE
 
 class Tier(Enum):
     """Enum representing the different lol ranked tiers"""
@@ -177,6 +180,7 @@ class GanksterRank(Enum):
         for gr in GanksterRank:
             if gr.gankster_rank == gankster_rank:
                 return gr
+        return GanksterRank.UNRANKED
 
 
 @dataclass

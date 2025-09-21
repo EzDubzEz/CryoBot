@@ -497,28 +497,41 @@ class GanksterAPI:
 
     def _parse_team(self, team: dict) -> Team:
         """Pareses the retrieved json team and returns value"""
-        return Team(number=team["id"], name=team["name"], rank=GanksterRank.from_gankster_rank(team["lolRank"]), region=team["lolServer"], bio=team.get("bio") or "",
-             roster=self._parse_players(team["lolRoster"]), opggLink=team.get("opggLink", "") or "", created=Scrim.timestamp_to_datetime(team["createdAt"]),
-             reputation=self._parse_reputation(team["reputation"]), logo_url=team.get("logo") or "")
+        return Team(number=team.get("id", 0), name=team.get("name", ""), rank=GanksterRank.from_gankster_rank(team.get("lolRank")), region=team.get("lolServer", ""), bio=team.get("bio", ""),
+             roster=self._parse_players(team.get("lolRoster", [])), opggLink=team.get("opggLink", ""), created=Scrim.timestamp_to_datetime(team.get("createdAt", 0)),
+             reputation=self._parse_reputation(team.get("reputation")), logo_url=team.get("logo", ""))
 
     def _parse_players(self, players: list[dict]) -> list[Player]:
         """Parses the retrieved json players list and returns value"""
-        return [Player(name=player["playerData"]["name"], rank=f'{GanksterRank.from_gankster_rank(player["playerData"]["rank"]).rank} {player["playerData"]["division"]}',
-                tag=player["playerData"]["tag"], puuid=player["playerData"]["puuid"], server=player["playerData"]["server"],
-                champions= [] if "stats" not in player["playerData"] else self._parse_champions(player["playerData"]["stats"]["champions"]), is_sub=player["isSub"],
-                last_updated=datetime.now() if "stats" not in player["playerData"] else Scrim.timestamp_to_datetime(player["playerData"]["stats"]["updatedAt"])) for player in players]
+        if not players or not len(players):
+            return []
+        return [Player(name=player["playerData"].get("name", ""), rank=f'{GanksterRank.from_gankster_rank(player["playerData"].get("rank")).rank} {player["playerData"].get("division", "")}',
+                tag=player["playerData"].get("tag", ""), puuid=player["playerData"].get("puuid", ""), server=player["playerData"].get("server", ""),
+                champions= [] if "stats" not in player["playerData"] else self._parse_champions(player["playerData"]["stats"]["champions"]), is_sub=player.get("isSub", False),
+                last_updated=datetime.now() if "stats" not in player["playerData"] or "updatedAt" not in player["playerData"]["stats"] 
+                else Scrim.timestamp_to_datetime(player["playerData"]["stats"]["updatedAt"])) for player in players]
 
     def _parse_player(self, player: dict) -> Player:
         """Parses the retrieved json player and returns value"""
-        return Player(name=player["name"], rank=f'{GanksterRank.from_gankster_rank(player["rank"]).rank} {player["division"]}', tag=player["tag"], puuid=player["puuid"],
-                      server=player["server"], champions=self._parse_champions(player["stats"]["champions"]), last_updated=Scrim.timestamp_to_datetime(player["stats"]["updatedAt"]))
+        if not player:
+            return Player("", "")
+        return Player(name=player.get("name", ""), rank=f'{GanksterRank.from_gankster_rank(player["rank"]).rank} {player.get("division"), ""}', tag=player.get("tag", ""), puuid=player.get("puuid", ""), server=player.get("server", ""),
+                      champions="" if "stats" not in player or "champions" not in player["stats"] else self._parse_champions(player["stats"]["champions"]),
+                      last_updated=datetime.now() if "stats" not in player  or "updatedAt" not in player["stats"] else Scrim.timestamp_to_datetime(player["stats"]["updatedAt"]))
 
     def _parse_champions(self, champions: list[dict]) -> list[Champion]:
         """Parses the retrieved json champions list and returns value"""
-        return [Champion(name=champ["name"], level=champ["level"], points=champ["points"], image_url=champ['imageURL']) for champ in champions]
+        if not champions or not len(champions):
+            return []
+        return [Champion(name=champ.get("name", ""), level=champ.get("level", 0), points=champ.get("points", 0), image_url=champ.get("imageURL", "")) for champ in champions]
 
     def _parse_reputation(self, reputation: dict) -> Reputation:
         """Parses the retrieved json reputation and returns value"""
-        return Reputation(gank_rep=reputation["rating"], likes=reputation["posTotalCount"], dislikes=reputation["negTotalCount"], response_time=ResponseTime(reputation["responseTimeSec"]),
-                          cancellation_rate=reputation["cancellationRate"], response_rate=reputation["responseRate"], communication=reputation["feedbackCommunicationScore"], behavior=reputation["feedbackBehaviorScore"],
-                          on_time=reputation["feedbackOnTimeScore"])
+        if not reputation:
+            return Reputation()
+        return Reputation(gank_rep=reputation.get("rating", 0), likes=reputation.get("posTotalCount", 0), dislikes=reputation.get("negTotalCount", 0), response_time=ResponseTime(reputation.get("responseTimeSec", 0)),
+                          cancellation_rate=reputation.get("cancellationRate", 0), response_rate=reputation.get("responseRate", 0), communication=reputation.get("feedbackCommunicationScore", 0), behavior=reputation.get("feedbackBehaviorScore", 0),
+                          on_time=reputation.get("feedbackOnTimeScore", 0))
+
+a = GanksterAPI().retrieve_incoming_scrim_requests()
+print()

@@ -1,3 +1,4 @@
 {
-    "GANKSTER_REFRESH_TOKEN": ""
+    "GANKSTER_REFRESH_TOKEN": "",
+    "AUTOMATIC_GOOGLE": true
 }

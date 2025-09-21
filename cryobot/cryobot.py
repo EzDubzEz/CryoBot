@@ -7,7 +7,7 @@ from discord.ext import commands, tasks
 
 from gankster import Gankster
 from google_api import GoogleAPI
-from helper import debugPrint, getVariable
+from helper import debugPrint, getVariable, setVariable
 from scrim_classes import CryoBotError, Scrim, ScrimFormat, Team
 from discord_stuff import DiscordStuff
 
@@ -274,16 +274,30 @@ class CryoBot:
         @tasks.loop(minutes=1)
         async def update_scrim_status():
             debugPrint("Starting Update Scrim Status")
-            await handle_incoming_scrim_requests()
-            await handle_outgoing_scrim_requests()
-            await handle_cryobark_scrims()
-            debugPrint("Update Scrim Status Successful")
+            try:
+                debugPrint("Starting Handle Incoming Scrim Requests")
+                await handle_incoming_scrim_requests()
+                debugPrint("Successfulyl Handle Incoming Scrim Requests")
+            except Exception as e: debugPrint(f"Failed To Handle Incoming Scrim Requests: {e}")
+            try:
+                debugPrint("Starting Handle Outgoing Scrim Requests")
+                await handle_outgoing_scrim_requests()
+                debugPrint("Successfulyl Handle Outgoing Scrim Requests")
+            except Exception as e: debugPrint(f"Failed To Handle Outgoing Scrim Requests: {e}")
+            try:
+                debugPrint("Starting Handle Cryobark Scrims")
+                await handle_cryobark_scrims()
+                debugPrint("Successfulyl Handle Cryobark Scrims")
+            except Exception as e: debugPrint(f"Failed To Handle Cryobark Scrims: {e}")
+            debugPrint("Update Scrim Status 'Successful'")
 
         @tasks.loop(minutes=45)
         async def refresh_gankster_token():
             debugPrint("Refreshing Gankster Token")
-            await self._gankster.refresh()
-            debugPrint("Refreshing Gankster Token Successful")
+            try: 
+                await self._gankster.refresh()
+                debugPrint("Refreshing Gankster Token Successful")
+            except: debugPrint("Failed to Refresh Gankster Token")
 
         def _handle_interaction_error(func):
             @functools.wraps(func)
@@ -328,6 +342,7 @@ class CryoBot:
                             "/send_scrim_request [team_name] [date] [time] [format]\n" \
                             "/retrieve_team_data [team_number] [team_name]\n" \
                             "/update_team_players [team_number] [team_name]\n"\
+                            "/change_automatic_google [enable_or_disable]\n"\
                             "/help"
 
             embed = discord.Embed(
@@ -509,6 +524,15 @@ class CryoBot:
             debugPrint(f"Attempting to reset scouting scrim results")
             await interaction.response.defer()  
             await self._google_api.reset_scouting_scrim_results()
+            debugPrint("Sucessfully Reset Scouting Scrim Results")
+            await interaction.followup.send("Sucessfully Reset Scouting Scrim Results")
+
+        @self._bot.tree.command(guild=discord.Object(id=GUILD_ID))
+        @_handle_interaction_error
+        async def change_automatic_google(interaction: discord.Interaction, enable_or_disable: bool):
+            debugPrint(f"Attempting to change automatic google")
+            await interaction.response.defer()  
+            setVariable("AUTOMATIC_GOOGLE", enable_or_disable)
             debugPrint("Sucessfully Reset Scouting Scrim Results")
             await interaction.followup.send("Sucessfully Reset Scouting Scrim Results")
 

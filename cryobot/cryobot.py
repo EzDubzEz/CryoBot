@@ -190,14 +190,14 @@ class CryoBot:
             for scrim in self._current_scrims.copy():
                 if scrim.get_gankster_removal_time() < now:
                     if not scrim.open:
-                        self._current_scrims.pop(scrim)
+                        self._current_scrims.remove(scrim)
                         self._played_scrims.add(scrim)
                     else:
                         await self._scrim_request_passed(scrim)
 
             for scrim in self._played_scrims.copy():
                 if scrim.get_scrim_end_time() < now:
-                    self._played_scrims.pop(scrim)
+                    self._played_scrims.remove(scrim)
                     await self._scrim_played(scrim)
 
             new_scrims = await self._gankster.retrieve_outgoing_scrims(CRYOBARK)
